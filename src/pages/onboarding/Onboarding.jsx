@@ -42,16 +42,22 @@ export default function Onboarding() {
 
   // PASO 1: Crear negocio
   async function guardarNegocio(e) {
-    e.preventDefault()
-    setLoading(true); setError(null)
-    const { data: { user } } = await supabase.auth.getUser()
-    const { data, error } = await supabase.from('negocios')
-      .insert({ ...negocio, owner_id: user.id })
-      .select().single()
-    if (error) { setError(error.message); setLoading(false); return }
-    setNegocioCreado(data)
-    setLoading(false); next()
+  e.preventDefault()
+  setLoading(true); setError(null)
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    setError('Sesión expirada. Iniciá sesión de nuevo.')
+    setLoading(false)
+    navigate('/admin/login')
+    return
   }
+  const { data, error } = await supabase.from('negocios')
+    .insert({ ...negocio, owner_id: session.user.id })
+    .select().single()
+  if (error) { setError(error.message); setLoading(false); return }
+  setNegocioCreado(data)
+  setLoading(false); next()
+}
 
   // PASO 2: Guardar horarios
   async function guardarHorarios(e) {
