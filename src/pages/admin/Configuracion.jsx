@@ -3,80 +3,62 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { Input, Button, Spinner } from '../../components/ui'
 
-function Section({ title, description, children }) {
+const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+const TIPOS_NEGOCIO = ['clinica', 'peluqueria', 'cancha', 'otro']
+const SIN_PROFESIONAL = ['cancha']
+
+function needsProfesional(tipo) { return !SIN_PROFESIONAL.includes(tipo) }
+
+function Section({ title, description, children, action }) {
   return (
-    <div className="border-b border-border pb-8 mb-8 last:border-0">
-      <div className="mb-4">
-        <h2 className="text-sm font-semibold text-white">{title}</h2>
-        {description && <p className="text-xs text-muted mt-0.5">{description}</p>}
+    <div className="border-b border-border pb-10 mb-10 last:border-0 last:mb-0">
+      <div className="flex items-start justify-between mb-5">
+        <div>
+          <h2 className="text-sm font-semibold text-white">{title}</h2>
+          {description && <p className="text-xs text-muted mt-0.5 max-w-sm">{description}</p>}
+        </div>
+        {action}
       </div>
       {children}
     </div>
   )
 }
 
+function Tag({ children, color = 'purple' }) {
+  const colors = {
+    purple: 'bg-accent bg-opacity-10 text-accent border-accent border-opacity-20',
+    green:  'bg-accent3 bg-opacity-10 text-accent3 border-accent3 border-opacity-20',
+    red:    'bg-accent2 bg-opacity-10 text-accent2 border-accent2 border-opacity-20',
+    yellow: 'bg-yellow-400 bg-opacity-10 text-yellow-400 border-yellow-400 border-opacity-20',
+  }
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono border ${colors[color]}`}>{children}</span>
+}
+
 export default function Configuracion() {
   const navigate = useNavigate()
   const [negocio, setNegocio] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [mpToken, setMpToken] = useState('')
-  const [showToken, setShowToken] = useState(false)
+  const [activeTab, setActiveTab] = useState('general')
 
   useEffect(() => {
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { navigate('/admin/login'); return }
-
-      const { data } = await supabase
-        .from('negocios')
-        .select('*')
-        .eq('owner_id', user.id)
-        .single()
-
-      setNegocio(data)
-      setMpToken(data?.mp_access_token ? '••••••••••••••••' : '')
-      setLoading(false)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { navigate('/admin/login'); return }
+      const { data } = await supabase.from('negocios').select('*').eq('owner_id', session.user.id).single()
+      setNegocio(data); setLoading(false)
     }
     init()
   }, [])
 
-  async function guardar(e) {
-    e.preventDefault()
-    setSaving(true)
-    setSaved(false)
+  if (loading) return <div className="min-h-screen bg-bg flex items-center justify-center"><Spinner size="lg" /></div>
 
-    const updates = {
-      nombre:      negocio.nombre,
-      descripcion: negocio.descripcion,
-      telefono:    negocio.telefono,
-    }
-
-    // Solo actualizar token si el usuario escribió algo nuevo (no los puntos de máscara)
-    if (mpToken && !mpToken.includes('•')) {
-      updates.mp_access_token = mpToken.trim()
-    }
-
-    await supabase.from('negocios').update(updates).eq('id', negocio.id)
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
-  }
-
-  async function quitarToken() {
-    if (!confirm('¿Quitás la integración con MercadoPago? Los servicios con pago requerido quedarán inactivos.')) return
-    await supabase.from('negocios').update({ mp_access_token: null }).eq('id', negocio.id)
-    setMpToken('')
-  }
-
-  if (loading) return (
-    <div className="min-h-screen bg-bg flex items-center justify-center">
-      <Spinner size="lg" />
-    </div>
-  )
-
-  const tieneToken = negocio?.mp_access_token
+  const tabs = [
+    { id: 'general', label: 'General' },
+    { id: 'servicios', label: 'Servicios' },
+    ...(needsProfesional(negocio?.tipo) ? [{ id: 'equipo', label: negocio?.label_profesional || 'Equipo' }] : []),
+    { id: 'horarios', label: 'Horarios' },
+    { id: 'pagos', label: 'Pagos' },
+  ]
 
   return (
     <div className="min-h-screen bg-bg">
@@ -85,118 +67,470 @@ export default function Configuracion() {
           <h1 className="font-semibold text-white">Configuración</h1>
           <p className="text-xs text-muted font-mono">{negocio?.nombre}</p>
         </div>
-        <button onClick={() => navigate('/admin')} className="text-sm text-muted hover:text-white transition-colors">
-          ← Volver al panel
-        </button>
+        <button onClick={() => navigate('/admin')} className="text-sm text-muted hover:text-white transition-colors">← Panel</button>
       </header>
+      <div className="border-b border-border px-6">
+        <div className="flex gap-0 overflow-x-auto">
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)}
+              className={`px-4 py-3 text-sm whitespace-nowrap border-b-2 transition-all ${activeTab === t.id ? 'border-accent text-white' : 'border-transparent text-muted hover:text-white'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        {activeTab === 'general'   && <TabGeneral   negocio={negocio} setNegocio={setNegocio} />}
+        {activeTab === 'servicios' && <TabServicios  negocio={negocio} />}
+        {activeTab === 'equipo'    && <TabEquipo     negocio={negocio} />}
+        {activeTab === 'horarios'  && <TabHorarios   negocio={negocio} />}
+        {activeTab === 'pagos'     && <TabPagos      negocio={negocio} setNegocio={setNegocio} />}
+      </div>
+    </div>
+  )
+}
 
-      <form onSubmit={guardar} className="max-w-lg mx-auto px-4 py-8">
+function TabGeneral({ negocio, setNegocio }) {
+  const [form, setForm] = useState({ ...negocio })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
 
-        {/* Info del negocio */}
-        <Section title="Información del negocio">
-          <div className="flex flex-col gap-4">
-            <Input
-              label="Nombre"
-              value={negocio?.nombre || ''}
-              onChange={e => setNegocio(n => ({ ...n, nombre: e.target.value }))}
-            />
-            <Input
-              label="Teléfono de contacto"
-              value={negocio?.telefono || ''}
-              onChange={e => setNegocio(n => ({ ...n, telefono: e.target.value }))}
-              placeholder="2494123456"
-            />
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm text-muted font-medium">Descripción (opcional)</label>
-              <textarea
-                value={negocio?.descripcion || ''}
-                onChange={e => setNegocio(n => ({ ...n, descripcion: e.target.value }))}
-                rows={3}
-                className="w-full bg-surface border border-border rounded-lg px-4 py-3 text-sm text-white placeholder-muted outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all resize-none"
-                placeholder="Breve descripción de tu negocio..."
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-muted mb-1">Tu URL pública</label>
-              <p className="text-sm font-mono text-accent">turnos.app/{negocio?.slug}</p>
-            </div>
+  async function guardar(e) {
+    e.preventDefault(); setSaving(true)
+    await supabase.from('negocios').update({ nombre: form.nombre, descripcion: form.descripcion, telefono: form.telefono, tipo: form.tipo, label_profesional: form.label_profesional }).eq('id', negocio.id)
+    setNegocio(n => ({ ...n, ...form })); setSaving(false); setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
+
+  return (
+    <form onSubmit={guardar} className="flex flex-col gap-6">
+      <Section title="Información del negocio">
+        <div className="flex flex-col gap-4">
+          <Input label="Nombre" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
+          <Input label="Teléfono" value={form.telefono || ''} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} placeholder="2494123456" />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm text-muted font-medium">Descripción</label>
+            <textarea value={form.descripcion || ''} rows={3} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))}
+              className="w-full bg-surface border border-border rounded-lg px-4 py-3 text-sm text-white placeholder-muted outline-none focus:border-accent resize-none" />
           </div>
-        </Section>
-
-        {/* MercadoPago */}
-        <Section
-          title="MercadoPago"
-          description="Conectá tu cuenta para recibir pagos de los turnos que lo requieran"
-        >
-          {/* Estado de la conexión */}
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border mb-4 ${
-            tieneToken
-              ? 'bg-accent3 bg-opacity-5 border-accent3 border-opacity-20'
-              : 'bg-surface border-border'
-          }`}>
-            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${tieneToken ? 'bg-accent3' : 'bg-muted'}`} />
-            <div className="flex-1">
-              <p className="text-sm text-white">
-                {tieneToken ? 'Cuenta conectada' : 'Sin conectar'}
-              </p>
-              <p className="text-xs text-muted">
-                {tieneToken
-                  ? 'Los pagos se acreditan directo en tu cuenta de MP'
-                  : 'Pegá tu Access Token para activar el cobro de turnos'}
-              </p>
-            </div>
-            {tieneToken && (
-              <button type="button" onClick={quitarToken} className="text-xs text-accent2 hover:underline flex-shrink-0">
-                Desconectar
-              </button>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm text-muted font-medium">
-                Access Token de producción
-              </label>
-              <div className="relative">
-                <input
-                  type={showToken ? 'text' : 'password'}
-                  value={mpToken}
-                  onChange={e => setMpToken(e.target.value)}
-                  onFocus={() => { if (mpToken.includes('•')) setMpToken('') }}
-                  placeholder="APP_USR-..."
-                  className="w-full bg-surface border border-border rounded-lg px-4 py-3 pr-12 text-sm text-white placeholder-muted outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowToken(s => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-white text-xs transition-colors"
-                >
-                  {showToken ? 'ocultar' : 'ver'}
+          <div>
+            <label className="block text-sm text-muted mb-2">Tipo de negocio</label>
+            <div className="grid grid-cols-2 gap-2">
+              {TIPOS_NEGOCIO.map(t => (
+                <button key={t} type="button" onClick={() => setForm(f => ({ ...f, tipo: t }))}
+                  className={`py-2.5 px-4 rounded-lg text-sm capitalize border transition-all ${form.tipo === t ? 'border-accent text-white bg-accent bg-opacity-10' : 'border-border text-muted hover:border-muted'}`}>
+                  {t}
                 </button>
-              </div>
-            </div>
-
-            {/* Instrucciones */}
-            <div className="bg-surface border border-border rounded-xl px-4 py-3 text-xs text-muted space-y-1">
-              <p className="text-white font-medium text-xs mb-2">¿Cómo obtengo mi Access Token?</p>
-              <p>1. Entrá a <span className="text-accent">mercadopago.com.ar/developers</span></p>
-              <p>2. Creá una aplicación</p>
-              <p>3. Copiá el <strong className="text-white">Access Token de producción</strong></p>
-              <p className="pt-1 text-yellow-400">⚠️ Nunca compartas este token con nadie</p>
+              ))}
             </div>
           </div>
-        </Section>
+          {!needsProfesional(form.tipo) && (
+            <Input label="¿Cómo llamás a tus espacios?" value={form.label_profesional || ''}
+              onChange={e => setForm(f => ({ ...f, label_profesional: e.target.value }))} placeholder="Cancha, Sala, Espacio..." />
+          )}
+          <div>
+            <label className="block text-sm text-muted mb-1">URL pública</label>
+            <p className="text-sm font-mono text-accent">turnos.app/{negocio.slug}</p>
+          </div>
+        </div>
+      </Section>
+      <div className="flex items-center gap-4">
+        <Button type="submit" disabled={saving} className="flex-1">{saving ? <Spinner size="sm" /> : 'Guardar cambios'}</Button>
+        {saved && <span className="text-sm text-accent3 font-mono">✓ Guardado</span>}
+      </div>
+    </form>
+  )
+}
 
-        {/* Guardar */}
-        <div className="flex items-center gap-4">
-          <Button type="submit" disabled={saving} className="flex-1">
-            {saving ? <Spinner size="sm" /> : 'Guardar cambios'}
-          </Button>
-          {saved && (
-            <span className="text-sm text-accent3 font-mono">✓ Guardado</span>
+function TabServicios({ negocio }) {
+  const [servicios, setServicios] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [editando, setEditando] = useState(null)
+  const [nuevo, setNuevo] = useState(false)
+
+  useEffect(() => { fetchServicios() }, [])
+
+  async function fetchServicios() {
+    const { data } = await supabase.from('servicios').select('*').eq('negocio_id', negocio.id).order('nombre')
+    setServicios(data || []); setLoading(false)
+  }
+
+  async function toggleActivo(s) {
+    await supabase.from('servicios').update({ activo: !s.activo }).eq('id', s.id); fetchServicios()
+  }
+
+  async function eliminar(id) {
+    if (!confirm('¿Eliminar este servicio?')) return
+    await supabase.from('servicios').delete().eq('id', id); fetchServicios()
+  }
+
+  if (loading) return <div className="flex justify-center py-8"><Spinner /></div>
+
+  return (
+    <Section title="Servicios" description="Lo que ofrecés a tus clientes"
+      action={<Button onClick={() => { setNuevo(true); setEditando(null) }} className="text-sm px-3 py-2">+ Agregar</Button>}>
+      {nuevo && <FormServicio negocioId={negocio.id} onSave={() => { setNuevo(false); fetchServicios() }} onCancel={() => setNuevo(false)} />}
+      {servicios.length === 0 && !nuevo ? (
+        <p className="text-sm text-muted text-center py-8">No hay servicios. Agregá uno.</p>
+      ) : (
+        <div className="flex flex-col gap-3 mt-4">
+          {servicios.map(s => editando === s.id
+            ? <FormServicio key={s.id} negocioId={negocio.id} servicio={s} onSave={() => { setEditando(null); fetchServicios() }} onCancel={() => setEditando(null)} />
+            : (
+              <div key={s.id} className="bg-surface border border-border rounded-xl px-5 py-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-white text-sm">{s.nombre}</p>
+                      {!s.activo && <Tag color="red">inactivo</Tag>}
+                      {s.requiere_pago && <Tag color="yellow">pago requerido</Tag>}
+                    </div>
+                    <p className="text-xs text-muted mt-0.5">{s.duracion_min} min{s.precio ? ` · $${s.precio.toLocaleString('es-AR')}` : ''}</p>
+                  </div>
+                  <div className="flex items-center gap-2 ml-4">
+                    <button onClick={() => setEditando(s.id)} className="text-xs text-muted hover:text-white">Editar</button>
+                    <button onClick={() => toggleActivo(s)} className={`text-xs ${s.activo ? 'text-muted hover:text-accent2' : 'text-accent3'}`}>{s.activo ? 'Desactivar' : 'Activar'}</button>
+                    <button onClick={() => eliminar(s.id)} className="text-xs text-accent2 hover:underline">Eliminar</button>
+                  </div>
+                </div>
+              </div>
+            )
           )}
         </div>
-      </form>
+      )}
+    </Section>
+  )
+}
+
+function FormServicio({ negocioId, servicio, onSave, onCancel }) {
+  const [form, setForm] = useState(servicio || { nombre: '', duracion_min: 30, precio: '', requiere_pago: false, descripcion: '' })
+  const [saving, setSaving] = useState(false)
+
+  async function guardar(e) {
+    e.preventDefault(); setSaving(true)
+    const data = { negocio_id: negocioId, nombre: form.nombre, descripcion: form.descripcion || null, duracion_min: Number(form.duracion_min), precio: form.precio ? Number(form.precio) : null, requiere_pago: form.requiere_pago, activo: true }
+    if (servicio?.id) { await supabase.from('servicios').update(data).eq('id', servicio.id) }
+    else { await supabase.from('servicios').insert(data) }
+    setSaving(false); onSave()
+  }
+
+  return (
+    <form onSubmit={guardar} className="bg-surface border border-accent border-opacity-30 rounded-xl p-4 flex flex-col gap-3">
+      <p className="text-xs font-mono text-accent">{servicio ? 'Editando servicio' : 'Nuevo servicio'}</p>
+      <Input placeholder="Nombre del servicio" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} required />
+      <Input placeholder="Descripción breve (opcional)" value={form.descripcion || ''} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Duración (min)" type="number" min={5} value={form.duracion_min} onChange={e => setForm(f => ({ ...f, duracion_min: e.target.value }))} />
+        <Input label="Precio (opcional)" type="number" value={form.precio || ''} placeholder="0" onChange={e => setForm(f => ({ ...f, precio: e.target.value }))} />
+      </div>
+      {form.precio && (
+        <label className="flex items-center gap-2 text-sm text-muted cursor-pointer">
+          <input type="checkbox" checked={form.requiere_pago} onChange={e => setForm(f => ({ ...f, requiere_pago: e.target.checked }))} className="accent-purple-500" />
+          Requiere pago para confirmar
+        </label>
+      )}
+      <div className="flex gap-2 mt-1">
+        <Button type="button" variant="ghost" onClick={onCancel} className="text-sm px-3 py-2">Cancelar</Button>
+        <Button type="submit" disabled={saving || !form.nombre} className="flex-1 text-sm">{saving ? <Spinner size="sm" /> : 'Guardar'}</Button>
+      </div>
+    </form>
+  )
+}
+
+function TabEquipo({ negocio }) {
+  const [profesionales, setProfesionales] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [nuevo, setNuevo] = useState(false)
+  const [editando, setEditando] = useState(null)
+  const label = negocio?.label_profesional || 'Profesional'
+
+  useEffect(() => { fetchProfesionales() }, [])
+
+  async function fetchProfesionales() {
+    const { data } = await supabase.from('profesionales').select('*').eq('negocio_id', negocio.id).order('nombre')
+    setProfesionales(data || []); setLoading(false)
+  }
+
+  async function toggleActivo(p) {
+    await supabase.from('profesionales').update({ activo: !p.activo }).eq('id', p.id); fetchProfesionales()
+  }
+
+  async function eliminar(id) {
+    if (!confirm(`¿Eliminar?`)) return
+    await supabase.from('profesionales').delete().eq('id', id); fetchProfesionales()
+  }
+
+  if (loading) return <div className="flex justify-center py-8"><Spinner /></div>
+
+  return (
+    <Section title={label} description={`Quiénes atienden en tu negocio`}
+      action={<Button onClick={() => { setNuevo(true); setEditando(null) }} className="text-sm px-3 py-2">+ Agregar</Button>}>
+      {nuevo && <FormProfesional negocioId={negocio.id} label={label} onSave={() => { setNuevo(false); fetchProfesionales() }} onCancel={() => setNuevo(false)} />}
+      {profesionales.length === 0 && !nuevo ? (
+        <p className="text-sm text-muted text-center py-8">No hay {label.toLowerCase()}s. Agregá uno.</p>
+      ) : (
+        <div className="flex flex-col gap-3 mt-4">
+          {profesionales.map(p => editando === p.id
+            ? <FormProfesional key={p.id} negocioId={negocio.id} profesional={p} label={label} onSave={() => { setEditando(null); fetchProfesionales() }} onCancel={() => setEditando(null)} />
+            : (
+              <div key={p.id} className="bg-surface border border-border rounded-xl px-5 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-border rounded-full flex items-center justify-center text-sm font-mono text-muted">{p.nombre[0].toUpperCase()}</div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-white">{p.nombre}</p>
+                      {!p.activo && <Tag color="red">inactivo</Tag>}
+                    </div>
+                    {p.especialidad && <p className="text-xs text-muted">{p.especialidad}</p>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setEditando(p.id)} className="text-xs text-muted hover:text-white">Editar</button>
+                  <button onClick={() => toggleActivo(p)} className={`text-xs ${p.activo ? 'text-muted hover:text-accent2' : 'text-accent3'}`}>{p.activo ? 'Desactivar' : 'Activar'}</button>
+                  <button onClick={() => eliminar(p.id)} className="text-xs text-accent2 hover:underline">Eliminar</button>
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      )}
+    </Section>
+  )
+}
+
+function FormProfesional({ negocioId, profesional, label, onSave, onCancel }) {
+  const [form, setForm] = useState(profesional || { nombre: '', especialidad: '' })
+  const [saving, setSaving] = useState(false)
+
+  async function guardar(e) {
+    e.preventDefault(); setSaving(true)
+    const data = { negocio_id: negocioId, nombre: form.nombre, especialidad: form.especialidad || null, activo: true }
+    if (profesional?.id) { await supabase.from('profesionales').update(data).eq('id', profesional.id) }
+    else { await supabase.from('profesionales').insert(data) }
+    setSaving(false); onSave()
+  }
+
+  return (
+    <form onSubmit={guardar} className="bg-surface border border-accent border-opacity-30 rounded-xl p-4 flex flex-col gap-3">
+      <p className="text-xs font-mono text-accent">{profesional ? `Editando ${label}` : `Nuevo ${label}`}</p>
+      <Input placeholder={`Nombre`} value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} required />
+      <Input placeholder="Especialidad (opcional)" value={form.especialidad || ''} onChange={e => setForm(f => ({ ...f, especialidad: e.target.value }))} />
+      <div className="flex gap-2 mt-1">
+        <Button type="button" variant="ghost" onClick={onCancel} className="text-sm px-3 py-2">Cancelar</Button>
+        <Button type="submit" disabled={saving || !form.nombre} className="flex-1 text-sm">{saving ? <Spinner size="sm" /> : 'Guardar'}</Button>
+      </div>
+    </form>
+  )
+}
+
+function TabHorarios({ negocio }) {
+  const [profesionales, setProfesionales] = useState([])
+  const [horarios, setHorarios] = useState({})
+  const [especiales, setEspeciales] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [nuevaFecha, setNuevaFecha] = useState({ fecha: '', tipo: 'cerrado', hora_inicio: '09:00', hora_fin: '18:00', motivo: '' })
+
+  useEffect(() => { fetchData() }, [])
+
+  async function fetchData() {
+    const [{ data: profs }, { data: hors }, { data: esp }] = await Promise.all([
+      supabase.from('profesionales').select('*').eq('negocio_id', negocio.id).eq('activo', true),
+      supabase.from('horarios').select('*'),
+      supabase.from('horarios_especiales').select('*').eq('negocio_id', negocio.id).order('fecha'),
+    ])
+    setProfesionales(profs || [])
+    setEspeciales(esp || [])
+    const map = {}
+    ;(profs || []).forEach(p => { map[p.id] = {}; for (let d = 0; d < 7; d++) map[p.id][d] = null })
+    ;(hors || []).forEach(h => { if (map[h.profesional_id]) map[h.profesional_id][h.dia_semana] = { hora_inicio: h.hora_inicio, hora_fin: h.hora_fin, id: h.id } })
+    setHorarios(map); setLoading(false)
+  }
+
+  function toggleDia(profId, dia) {
+    setHorarios(h => ({ ...h, [profId]: { ...h[profId], [dia]: h[profId][dia] ? null : { hora_inicio: '09:00', hora_fin: '18:00' } } }))
+  }
+
+  function updateHorario(profId, dia, field, value) {
+    setHorarios(h => ({ ...h, [profId]: { ...h[profId], [dia]: { ...h[profId][dia], [field]: value } } }))
+  }
+
+  async function guardarHorarios() {
+    setSaving(true)
+    for (const profId of Object.keys(horarios)) {
+      for (let dia = 0; dia < 7; dia++) {
+        const h = horarios[profId][dia]
+        const existing = h?.id
+        if (h && h.hora_inicio && h.hora_fin) {
+          if (existing) { await supabase.from('horarios').update({ hora_inicio: h.hora_inicio, hora_fin: h.hora_fin }).eq('id', existing) }
+          else { await supabase.from('horarios').insert({ profesional_id: profId, dia_semana: dia, hora_inicio: h.hora_inicio, hora_fin: h.hora_fin }) }
+        } else if (!h && existing) { await supabase.from('horarios').delete().eq('id', existing) }
+      }
+    }
+    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 3000); fetchData()
+  }
+
+  async function agregarEspecial() {
+    if (!nuevaFecha.fecha) return
+    await supabase.from('horarios_especiales').insert({ negocio_id: negocio.id, ...nuevaFecha })
+    setNuevaFecha({ fecha: '', tipo: 'cerrado', hora_inicio: '09:00', hora_fin: '18:00', motivo: '' }); fetchData()
+  }
+
+  async function eliminarEspecial(id) {
+    await supabase.from('horarios_especiales').delete().eq('id', id); fetchData()
+  }
+
+  if (loading) return <div className="flex justify-center py-8"><Spinner /></div>
+
+  return (
+    <div>
+      <Section title="Horarios regulares" description="Días y horarios de atención por miembro del equipo">
+        {profesionales.length === 0 ? (
+          <p className="text-sm text-muted text-center py-6">Primero agregá miembros en la pestaña Equipo.</p>
+        ) : profesionales.map(prof => (
+          <div key={prof.id} className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 bg-border rounded-full flex items-center justify-center text-xs font-mono text-muted">{prof.nombre[0].toUpperCase()}</div>
+              <p className="text-sm font-medium text-white">{prof.nombre}</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              {DIAS.map((dia, i) => {
+                const h = horarios[prof.id]?.[i]
+                const activo = !!h
+                return (
+                  <div key={i} className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${activo ? 'border-border bg-surface' : 'border-border bg-surface opacity-50'}`}>
+                    <button type="button" onClick={() => toggleDia(prof.id, i)}
+                      className={`w-4 h-4 rounded border-2 flex-shrink-0 transition-all ${activo ? 'bg-accent border-accent' : 'border-muted'}`} />
+                    <span className="text-sm text-white w-20 flex-shrink-0">{dia}</span>
+                    {activo ? (
+                      <div className="flex items-center gap-2 ml-auto">
+                        <input type="time" value={h.hora_inicio} onChange={e => updateHorario(prof.id, i, 'hora_inicio', e.target.value)}
+                          className="bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-accent" />
+                        <span className="text-muted text-xs">a</span>
+                        <input type="time" value={h.hora_fin} onChange={e => updateHorario(prof.id, i, 'hora_fin', e.target.value)}
+                          className="bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-accent" />
+                      </div>
+                    ) : <span className="text-xs text-muted ml-auto">Cerrado</span>}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+        {profesionales.length > 0 && (
+          <div className="flex items-center gap-4 mt-4">
+            <Button onClick={guardarHorarios} disabled={saving} className="flex-1">{saving ? <Spinner size="sm" /> : 'Guardar horarios'}</Button>
+            {saved && <span className="text-sm text-accent3 font-mono">✓ Guardado</span>}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Días especiales y feriados" description="Marcá días con horario diferente o días de cierre">
+        <div className="flex flex-col gap-3 mb-4">
+          {especiales.length === 0 ? <p className="text-sm text-muted">No hay excepciones configuradas.</p>
+          : especiales.map(e => (
+            <div key={e.id} className="bg-surface border border-border rounded-xl px-4 py-3 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-white font-medium">
+                    {new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  </p>
+                  <Tag color={e.tipo === 'cerrado' ? 'red' : 'yellow'}>{e.tipo === 'cerrado' ? 'Cerrado' : 'Horario especial'}</Tag>
+                </div>
+                {e.motivo && <p className="text-xs text-muted mt-0.5">{e.motivo}</p>}
+                {e.tipo === 'horario_especial' && <p className="text-xs text-muted">{e.hora_inicio} — {e.hora_fin}</p>}
+              </div>
+              <button onClick={() => eliminarEspecial(e.id)} className="text-xs text-accent2 hover:underline ml-4">Quitar</button>
+            </div>
+          ))}
+        </div>
+        <div className="bg-surface border border-border rounded-xl p-4 flex flex-col gap-3">
+          <p className="text-xs font-mono text-muted">Agregar excepción</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Fecha" type="date" value={nuevaFecha.fecha} onChange={e => setNuevaFecha(f => ({ ...f, fecha: e.target.value }))} />
+            <div>
+              <label className="block text-sm text-muted mb-1.5">Tipo</label>
+              <div className="flex gap-2">
+                {['cerrado', 'horario_especial'].map(t => (
+                  <button key={t} type="button" onClick={() => setNuevaFecha(f => ({ ...f, tipo: t }))}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs border transition-all ${nuevaFecha.tipo === t ? 'border-accent text-white bg-accent bg-opacity-10' : 'border-border text-muted'}`}>
+                    {t === 'cerrado' ? 'Cerrado' : 'Especial'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          {nuevaFecha.tipo === 'horario_especial' && (
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Apertura" type="time" value={nuevaFecha.hora_inicio} onChange={e => setNuevaFecha(f => ({ ...f, hora_inicio: e.target.value }))} />
+              <Input label="Cierre" type="time" value={nuevaFecha.hora_fin} onChange={e => setNuevaFecha(f => ({ ...f, hora_fin: e.target.value }))} />
+            </div>
+          )}
+          <Input label="Motivo (opcional)" value={nuevaFecha.motivo} placeholder="Ej: Feriado nacional..." onChange={e => setNuevaFecha(f => ({ ...f, motivo: e.target.value }))} />
+          <Button onClick={agregarEspecial} disabled={!nuevaFecha.fecha} className="w-full">Agregar excepción</Button>
+        </div>
+      </Section>
     </div>
+  )
+}
+
+function TabPagos({ negocio, setNegocio }) {
+  const [mpToken, setMpToken] = useState(negocio?.mp_access_token ? '••••••••••••••••' : '')
+  const [showToken, setShowToken] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const tieneToken = negocio?.mp_access_token
+
+  async function guardar(e) {
+    e.preventDefault(); setSaving(true)
+    const updates = {}
+    if (mpToken && !mpToken.includes('•')) updates.mp_access_token = mpToken.trim()
+    await supabase.from('negocios').update(updates).eq('id', negocio.id)
+    setNegocio(n => ({ ...n, ...updates })); setSaving(false); setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
+
+  async function quitarToken() {
+    if (!confirm('¿Desconectás MercadoPago?')) return
+    await supabase.from('negocios').update({ mp_access_token: null }).eq('id', negocio.id)
+    setMpToken(''); setNegocio(n => ({ ...n, mp_access_token: null }))
+  }
+
+  return (
+    <form onSubmit={guardar}>
+      <Section title="MercadoPago" description="Conectá tu cuenta para recibir pagos de turnos">
+        <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border mb-5 ${tieneToken ? 'bg-accent3 bg-opacity-5 border-accent3 border-opacity-20' : 'bg-surface border-border'}`}>
+          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${tieneToken ? 'bg-accent3' : 'bg-muted'}`} />
+          <div className="flex-1">
+            <p className="text-sm text-white">{tieneToken ? 'Cuenta conectada' : 'Sin conectar'}</p>
+            <p className="text-xs text-muted">{tieneToken ? 'Los pagos se acreditan en tu cuenta de MP' : 'Pegá tu Access Token para activar el cobro'}</p>
+          </div>
+          {tieneToken && <button type="button" onClick={quitarToken} className="text-xs text-accent2 hover:underline">Desconectar</button>}
+        </div>
+        <div className="flex flex-col gap-3">
+          <div className="relative">
+            <input type={showToken ? 'text' : 'password'} value={mpToken}
+              onChange={e => setMpToken(e.target.value)} onFocus={() => { if (mpToken.includes('•')) setMpToken('') }}
+              placeholder="APP_USR-..."
+              className="w-full bg-surface border border-border rounded-lg px-4 py-3 pr-12 text-sm text-white placeholder-muted outline-none focus:border-accent font-mono" />
+            <button type="button" onClick={() => setShowToken(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted hover:text-white">
+              {showToken ? 'ocultar' : 'ver'}
+            </button>
+          </div>
+          <div className="bg-surface border border-border rounded-xl px-4 py-3 text-xs text-muted space-y-1">
+            <p className="text-white font-medium mb-2">¿Cómo obtengo mi Access Token?</p>
+            <p>1. Entrá a <span className="text-accent">mercadopago.com.ar/developers</span></p>
+            <p>2. Creá una aplicación</p>
+            <p>3. Copiá el <strong className="text-white">Access Token de producción</strong></p>
+            <p className="pt-1 text-yellow-400">⚠️ Nunca compartas este token con nadie</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 mt-5">
+          <Button type="submit" disabled={saving} className="flex-1">{saving ? <Spinner size="sm" /> : 'Guardar'}</Button>
+          {saved && <span className="text-sm text-accent3 font-mono">✓ Guardado</span>}
+        </div>
+      </Section>
+    </form>
   )
 }
