@@ -538,6 +538,25 @@ function TabPagos({ negocio, setNegocio }) {
 }
 
 function TabApariencia({ negocio, setNegocio }) {
+  const COLORES_PRIMARIOS = [
+    { nombre: 'Violeta', valor: '#7c6aff' },
+    { nombre: 'Azul', valor: '#3b82f6' },
+    { nombre: 'Verde', valor: '#22c55e' },
+    { nombre: 'Rojo', valor: '#ef4444' },
+    { nombre: 'Naranja', valor: '#f97316' },
+    { nombre: 'Rosa', valor: '#ec4899' },
+    { nombre: 'Amarillo', valor: '#eab308' },
+    { nombre: 'Cyan', valor: '#06b6d4' },
+  ]
+
+  const FONDOS = [
+    { nombre: 'Oscuro', valor: '#0a0a0f' },
+    { nombre: 'Gris oscuro', valor: '#111827' },
+    { nombre: 'Azul oscuro', valor: '#0f172a' },
+    { nombre: 'Claro', valor: '#f9fafb' },
+    { nombre: 'Blanco', valor: '#ffffff' },
+  ]
+
   const [form, setForm] = useState({
     color_primario: negocio?.color_primario || '#7c6aff',
     color_fondo:    negocio?.color_fondo    || '#0a0a0f',
@@ -558,58 +577,62 @@ function TabApariencia({ negocio, setNegocio }) {
     setTimeout(() => setSaved(false), 3000)
   }
 
+  const fondoOscuro = ['#0a0a0f','#111827','#0f172a'].includes(form.color_fondo)
+
   return (
     <form onSubmit={guardar}>
       <Section title="Apariencia" description="Personalizá los colores de tu agenda pública">
-        <div className="rounded-xl overflow-hidden border border-border mb-6" style={{ background: form.color_fondo }}>
-          <div className="px-5 py-4 flex items-center gap-3 border-b border-white border-opacity-10">
+        <div className="rounded-xl overflow-hidden border border-border mb-8" style={{ background: form.color_fondo }}>
+          <div className="px-5 py-4 flex items-center gap-3 border-b" style={{ borderColor: fondoOscuro ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
             {form.logo_url
               ? <img src={form.logo_url} alt="logo" className="w-10 h-10 rounded-xl object-cover" />
-              : <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background: form.color_primario + '22' }}>🏢</div>
+              : <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background: form.color_primario + '33' }}>🏢</div>
             }
             <div>
-              <p className="text-white font-medium text-sm">{negocio?.nombre}</p>
-              <p className="text-xs opacity-50 text-white capitalize">{negocio?.tipo}</p>
+              <p className="font-medium text-sm" style={{ color: fondoOscuro ? 'white' : '#111' }}>{negocio?.nombre}</p>
+              <p className="text-xs capitalize" style={{ color: fondoOscuro ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)' }}>{negocio?.tipo}</p>
             </div>
           </div>
-          <div className="px-5 py-4">
-            <div className="rounded-lg py-2.5 px-4 text-center text-sm font-medium text-white" style={{ background: form.color_primario }}>
+          <div className="px-5 py-5">
+            <div className="rounded-lg py-3 px-4 text-center text-sm font-medium text-white" style={{ background: form.color_primario }}>
               Reservar turno
             </div>
           </div>
         </div>
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col gap-1.5 flex-1">
-              <label className="text-sm text-muted font-medium">Color primario</label>
-              <div className="flex items-center gap-3">
-                <input type="color" value={form.color_primario}
-                  onChange={e => setForm(f => ({ ...f, color_primario: e.target.value }))}
-                  className="w-12 h-10 rounded-lg border border-border bg-surface cursor-pointer" />
-                <input type="text" value={form.color_primario}
-                  onChange={e => setForm(f => ({ ...f, color_primario: e.target.value }))}
-                  className="flex-1 bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-white font-mono outline-none focus:border-accent" />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5 flex-1">
-              <label className="text-sm text-muted font-medium">Color de fondo</label>
-              <div className="flex items-center gap-3">
-                <input type="color" value={form.color_fondo}
-                  onChange={e => setForm(f => ({ ...f, color_fondo: e.target.value }))}
-                  className="w-12 h-10 rounded-lg border border-border bg-surface cursor-pointer" />
-                <input type="text" value={form.color_fondo}
-                  onChange={e => setForm(f => ({ ...f, color_fondo: e.target.value }))}
-                  className="flex-1 bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-white font-mono outline-none focus:border-accent" />
-              </div>
+        <div className="flex flex-col gap-6">
+          <div>
+            <label className="block text-sm text-white font-medium mb-3">Color de marca</label>
+            <div className="flex flex-wrap gap-3">
+              {COLORES_PRIMARIOS.map(c => (
+                <button key={c.valor} type="button" onClick={() => setForm(f => ({ ...f, color_primario: c.valor }))}
+                  title={c.nombre}
+                  className={`w-10 h-10 rounded-xl transition-all ${form.color_primario === c.valor ? 'ring-2 ring-white ring-offset-2 ring-offset-bg scale-110' : 'hover:scale-105'}`}
+                  style={{ background: c.valor }} />
+              ))}
             </div>
           </div>
-          <Input label="URL del logo (opcional)" value={form.logo_url}
+          <div>
+            <label className="block text-sm text-white font-medium mb-3">Fondo</label>
+            <div className="flex flex-wrap gap-3">
+              {FONDOS.map(c => (
+                <button key={c.valor} type="button" onClick={() => setForm(f => ({ ...f, color_fondo: c.valor }))}
+                  title={c.nombre}
+                  className={`w-10 h-10 rounded-xl border border-border transition-all ${form.color_fondo === c.valor ? 'ring-2 ring-white ring-offset-2 ring-offset-bg scale-110' : 'hover:scale-105'}`}
+                  style={{ background: c.valor }} />
+              ))}
+            </div>
+          </div>
+          <Input label="Logo (URL de imagen, opcional)" value={form.logo_url}
             onChange={e => setForm(f => ({ ...f, logo_url: e.target.value }))}
             placeholder="https://mi-logo.com/logo.png" />
-          <p className="text-xs text-muted">Podés subir tu logo a <span className="text-accent">imgur.com</span> y pegar el link.</p>
+          <p className="text-xs text-muted -mt-3">
+            Podés subir tu imagen en <span className="text-accent">imgur.com</span> y pegar el link acá.
+          </p>
         </div>
-        <div className="flex items-center gap-4 mt-5">
-          <Button type="submit" disabled={saving} className="flex-1">{saving ? <Spinner size="sm" /> : 'Guardar apariencia'}</Button>
+        <div className="flex items-center gap-4 mt-6">
+          <Button type="submit" disabled={saving} className="flex-1">
+            {saving ? <Spinner size="sm" /> : 'Guardar apariencia'}
+          </Button>
           {saved && <span className="text-sm text-accent3 font-mono">✓ Guardado</span>}
         </div>
       </Section>
