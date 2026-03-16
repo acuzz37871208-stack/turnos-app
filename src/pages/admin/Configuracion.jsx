@@ -58,6 +58,7 @@ export default function Configuracion() {
     ...(needsProfesional(negocio?.tipo) ? [{ id: 'equipo', label: negocio?.label_profesional || 'Equipo' }] : []),
     { id: 'horarios', label: 'Horarios' },
     { id: 'pagos', label: 'Pagos' },
+    { id: 'apariencia', label: 'Apariencia' },
   ]
 
   return (
@@ -84,7 +85,8 @@ export default function Configuracion() {
         {activeTab === 'servicios' && <TabServicios  negocio={negocio} />}
         {activeTab === 'equipo'    && <TabEquipo     negocio={negocio} />}
         {activeTab === 'horarios'  && <TabHorarios   negocio={negocio} />}
-        {activeTab === 'pagos'     && <TabPagos      negocio={negocio} setNegocio={setNegocio} />}
+        {activeTab === 'pagos'      && <TabPagos      negocio={negocio} setNegocio={setNegocio} />}
+        {activeTab === 'apariencia' && <TabApariencia negocio={negocio} setNegocio={setNegocio} />}
       </div>
     </div>
   )
@@ -528,6 +530,86 @@ function TabPagos({ negocio, setNegocio }) {
         </div>
         <div className="flex items-center gap-4 mt-5">
           <Button type="submit" disabled={saving} className="flex-1">{saving ? <Spinner size="sm" /> : 'Guardar'}</Button>
+          {saved && <span className="text-sm text-accent3 font-mono">✓ Guardado</span>}
+        </div>
+      </Section>
+    </form>
+  )
+}
+
+function TabApariencia({ negocio, setNegocio }) {
+  const [form, setForm] = useState({
+    color_primario: negocio?.color_primario || '#7c6aff',
+    color_fondo:    negocio?.color_fondo    || '#0a0a0f',
+    logo_url:       negocio?.logo_url       || '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  async function guardar(e) {
+    e.preventDefault(); setSaving(true)
+    await supabase.from('negocios').update({
+      color_primario: form.color_primario,
+      color_fondo:    form.color_fondo,
+      logo_url:       form.logo_url || null,
+    }).eq('id', negocio.id)
+    setNegocio(n => ({ ...n, ...form }))
+    setSaving(false); setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
+
+  return (
+    <form onSubmit={guardar}>
+      <Section title="Apariencia" description="Personalizá los colores de tu agenda pública">
+        <div className="rounded-xl overflow-hidden border border-border mb-6" style={{ background: form.color_fondo }}>
+          <div className="px-5 py-4 flex items-center gap-3 border-b border-white border-opacity-10">
+            {form.logo_url
+              ? <img src={form.logo_url} alt="logo" className="w-10 h-10 rounded-xl object-cover" />
+              : <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background: form.color_primario + '22' }}>🏢</div>
+            }
+            <div>
+              <p className="text-white font-medium text-sm">{negocio?.nombre}</p>
+              <p className="text-xs opacity-50 text-white capitalize">{negocio?.tipo}</p>
+            </div>
+          </div>
+          <div className="px-5 py-4">
+            <div className="rounded-lg py-2.5 px-4 text-center text-sm font-medium text-white" style={{ background: form.color_primario }}>
+              Reservar turno
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-1.5 flex-1">
+              <label className="text-sm text-muted font-medium">Color primario</label>
+              <div className="flex items-center gap-3">
+                <input type="color" value={form.color_primario}
+                  onChange={e => setForm(f => ({ ...f, color_primario: e.target.value }))}
+                  className="w-12 h-10 rounded-lg border border-border bg-surface cursor-pointer" />
+                <input type="text" value={form.color_primario}
+                  onChange={e => setForm(f => ({ ...f, color_primario: e.target.value }))}
+                  className="flex-1 bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-white font-mono outline-none focus:border-accent" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5 flex-1">
+              <label className="text-sm text-muted font-medium">Color de fondo</label>
+              <div className="flex items-center gap-3">
+                <input type="color" value={form.color_fondo}
+                  onChange={e => setForm(f => ({ ...f, color_fondo: e.target.value }))}
+                  className="w-12 h-10 rounded-lg border border-border bg-surface cursor-pointer" />
+                <input type="text" value={form.color_fondo}
+                  onChange={e => setForm(f => ({ ...f, color_fondo: e.target.value }))}
+                  className="flex-1 bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-white font-mono outline-none focus:border-accent" />
+              </div>
+            </div>
+          </div>
+          <Input label="URL del logo (opcional)" value={form.logo_url}
+            onChange={e => setForm(f => ({ ...f, logo_url: e.target.value }))}
+            placeholder="https://mi-logo.com/logo.png" />
+          <p className="text-xs text-muted">Podés subir tu logo a <span className="text-accent">imgur.com</span> y pegar el link.</p>
+        </div>
+        <div className="flex items-center gap-4 mt-5">
+          <Button type="submit" disabled={saving} className="flex-1">{saving ? <Spinner size="sm" /> : 'Guardar apariencia'}</Button>
           {saved && <span className="text-sm text-accent3 font-mono">✓ Guardado</span>}
         </div>
       </Section>
