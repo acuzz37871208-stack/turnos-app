@@ -4,7 +4,10 @@ import { useBookingStore } from '../../store/bookingStore'
 import { supabase } from '../../lib/supabase'
 import { Button, Spinner } from '../../components/ui'
 
+const SIN_PROFESIONAL = ['cancha']
+
 function Row({ label, value }) {
+  if (!value) return null
   return (
     <div className="flex items-start justify-between py-3 border-b border-border last:border-0">
       <span className="text-sm text-muted">{label}</span>
@@ -20,8 +23,8 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
   const { servicio, profesional, fecha, hora, cliente, setTurnoConfirmado } = useBookingStore()
 
   const requierePago = servicio?.requiere_pago
+  const usaProfesional = !SIN_PROFESIONAL.includes(negocio?.tipo)
 
-  // Calcular hora fin
   const [hh, mm] = hora.split(':').map(Number)
   const finMin = hh * 60 + mm + (servicio?.duracion_min || 30)
   const horaFin = `${String(Math.floor(finMin/60)).padStart(2,'0')}:${String(finMin%60).padStart(2,'0')}`
@@ -33,17 +36,17 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
       const { data, error: err } = await supabase
         .from('turnos')
         .insert({
-          negocio_id:        negocio.id,
-          servicio_id:       servicio.id,
-          profesional_id:    profesional?.id === 'cualquiera' ? null : profesional?.id,
-          cliente_nombre:    cliente.nombre,
-          cliente_telefono:  cliente.telefono,
-          cliente_email:     cliente.email,
-          nota:              cliente.nota || null,
+          negocio_id:       negocio.id,
+          servicio_id:      servicio.id,
+          profesional_id:   (!usaProfesional || profesional?.id === 'cualquiera') ? null : profesional?.id,
+          cliente_nombre:   cliente.nombre,
+          cliente_telefono: cliente.telefono,
+          cliente_email:    cliente.email,
+          nota:             cliente.nota || null,
           fecha,
-          hora_inicio:       hora,
-          hora_fin:          horaFin,
-          estado:            requierePago ? 'pendiente_pago' : 'pendiente',
+          hora_inicio:      hora,
+          hora_fin:         horaFin,
+          estado:           requierePago ? 'pendiente_pago' : 'pendiente',
         })
         .select()
         .single()
@@ -52,8 +55,11 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
 
       setTurnoConfirmado(data)
 
+      // Enviar notificación por email (no bloquea el flujo)
+      enviarNotificacion(data).catch(console.error)
+
       if (requierePago && onNext) {
-        onNext() // ir al paso de pago
+        onNext()
       } else {
         navigate(`/${slug}/confirmacion`)
       }
@@ -62,6 +68,15 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function enviarNotificacion(turno) {
+    await supabase.functions.invoke('notificar-turno', {
+      body: {
+        turno_id:   turno.id,
+        negocio_id: negocio.id,
+      }
+    })
   }
 
   const fechaFormateada = new Date(fecha + 'T12:00:00').toLocaleDateString('es-AR', {
@@ -74,16 +89,18 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
       <p className="text-sm text-muted mb-6">Revisá antes de confirmar</p>
 
       <div className="bg-surface border border-border rounded-xl px-5 mb-6">
-        <Row label="Negocio"     value={negocio?.nombre} />
-        <Row label="Servicio"    value={servicio?.nombre} />
-        <Row label="Profesional" value={profesional?.id === 'cualquiera' ? 'Sin preferencia' : profesional?.nombre} />
-        <Row label="Fecha"       value={fechaFormateada} />
-        <Row label="Hora"        value={`${hora} — ${horaFin}`} />
-        <Row label="Nombre"      value={cliente.nombre} />
-        <Row label="Teléfono"    value={cliente.telefono} />
-        <Row label="Email"       value={cliente.email} />
+        <Row label="Negocio"  value={negocio?.nombre} />
+        <Row label="Servicio" value={servicio?.nombre} />
+        {usaProfesional && profesional?.id !== 'cualquiera' && (
+          <Row label="Profesional" value={profesional?.nombre} />
+        )}
+        <Row label="Fecha"    value={fechaFormateada} />
+        <Row label="Hora"     value={`${hora} — ${horaFin}`} />
+        <Row label="Nombre"   value={cliente.nombre} />
+        <Row label="Teléfono" value={cliente.telefono} />
+        <Row label="Email"    value={cliente.email} />
         {servicio?.precio && (
-          <Row label="Precio" value={`$${servicio.precio.toLocaleString('es-AR')}`} />
+          <Row label="Precio" value={`$${Number(servicio.precio).toLocaleString('es-AR')}`} />
         )}
       </div>
 

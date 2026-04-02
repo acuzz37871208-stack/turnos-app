@@ -31,8 +31,13 @@ export default function AdminDashboard() {
         .eq('owner_id', user.id)
         .single()
 
-      setNegocio(neg)
-      if (neg) fetchTurnos(neg.id, filtroFecha)
+ setNegocio(neg)
+      if (neg) {
+        fetchTurnos(neg.id, filtroFecha)
+        document.body.style.backgroundColor = neg.color_fondo || '#0a0a0f'
+        document.documentElement.style.setProperty('--color-bg', neg.color_fondo || '#0a0a0f')
+        document.documentElement.style.setProperty('--color-accent', neg.color_primario || '#7c6aff')
+      }
     }
     init()
   }, [])

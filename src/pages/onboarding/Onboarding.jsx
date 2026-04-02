@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { Input, Button, Spinner, StepIndicator } from '../../components/ui'
@@ -12,101 +12,83 @@ export default function Onboarding() {
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-
-  // Datos del form
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [negocio, setNegocio] = useState({ nombre: '', tipo: 'peluqueria', slug: '', telefono: '' })
-  const [horarios, setHorarios] = useState({
-    dias: [1,2,3,4,5], // Lun-Vie por defecto
-    hora_inicio: '09:00',
-    hora_fin: '18:00',
-    intervalo: 30,
-  })
-  const [servicios, setServicios] = useState([
-    { nombre: '', duracion_min: 30, precio: '', requiere_pago: false }
-  ])
+  const [horarios, setHorarios] = useState({ dias: [1,2,3,4,5], hora_inicio: '09:00', hora_fin: '18:00', intervalo: 30 })
+  const [servicios, setServicios] = useState([{ nombre: '', duracion_min: 30, precio: '', requiere_pago: false }])
   const [negocioCreado, setNegocioCreado] = useState(null)
+
+  // Si ya hay sesión activa, saltar paso 0
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setStep(1)
+    })
+  }, [])
 
   const next = () => setStep(s => s + 1)
   const back = () => setStep(s => s - 1)
 
-  // PASO 0: Crear cuenta
   async function crearCuenta(e) {
     e.preventDefault()
     setLoading(true); setError(null)
-    const { error } = await supabase.auth.signUp({ email, password })
-    if (error) { setError(error.message); setLoading(false); return }
+    const { error: signUpError } = await supabase.auth.signUp({ email, password })
+    if (signUpError) { setError(signUpError.message); setLoading(false); return }
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) { setError(signInError.message); setLoading(false); return }
     setLoading(false); next()
   }
 
-  // PASO 1: Crear negocio
   async function guardarNegocio(e) {
-  e.preventDefault()
-  setLoading(true); setError(null)
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) {
-    setError('Sesión expirada. Iniciá sesión de nuevo.')
-    setLoading(false)
-    navigate('/admin/login')
-    return
+    e.preventDefault()
+    setLoading(true); setError(null)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { setError('Sesión expirada. Iniciá sesión de nuevo.'); setLoading(false); navigate('/admin/login'); return }
+    const { data, error } = await supabase.from('negocios')
+      .insert({ ...negocio, owner_id: session.user.id })
+      .select().single()
+    if (error) { setError(error.message); setLoading(false); return }
+    setNegocioCreado(data)
+    setLoading(false); next()
   }
-  const { data, error } = await supabase.from('negocios')
-    .insert({ ...negocio, owner_id: session.user.id })
-    .select().single()
-  if (error) { setError(error.message); setLoading(false); return }
-  setNegocioCreado(data)
-  setLoading(false); next()
-}
 
-  // PASO 2: Guardar horarios
   async function guardarHorarios(e) {
     e.preventDefault()
     setLoading(true); setError(null)
-    // Crear un profesional genérico + sus horarios
     const { data: prof } = await supabase.from('profesionales')
       .insert({ negocio_id: negocioCreado.id, nombre: 'Equipo', activo: true })
       .select().single()
-
     const horariosRows = horarios.dias.map(dia => ({
-      profesional_id: prof.id,
-      dia_semana: dia,
-      hora_inicio: horarios.hora_inicio,
-      hora_fin: horarios.hora_fin,
+      profesional_id: prof.id, dia_semana: dia,
+      hora_inicio: horarios.hora_inicio, hora_fin: horarios.hora_fin,
     }))
     await supabase.from('horarios').insert(horariosRows)
     setLoading(false); next()
   }
 
-  // PASO 3: Guardar servicios
   async function guardarServicios(e) {
     e.preventDefault()
     setLoading(true); setError(null)
-    const rows = servicios
-      .filter(s => s.nombre.trim())
-      .map(s => ({
-        negocio_id:    negocioCreado.id,
-        nombre:        s.nombre,
-        duracion_min:  Number(s.duracion_min),
-        precio:        s.precio ? Number(s.precio) : null,
-        requiere_pago: s.requiere_pago,
-        activo:        true,
-      }))
-    await supabase.from('servicios').insert(rows)
+    const rows = servicios.filter(s => s.nombre.trim()).map(s => ({
+      negocio_id: negocioCreado.id, nombre: s.nombre,
+      duracion_min: Number(s.duracion_min),
+      precio: s.precio ? Number(s.precio) : null,
+      requiere_pago: s.requiere_pago, activo: true,
+    }))
+    if (rows.length > 0) await supabase.from('servicios').insert(rows)
     setLoading(false); next()
   }
 
   function toggleDia(dia) {
-    setHorarios(h => ({
-      ...h,
-      dias: h.dias.includes(dia) ? h.dias.filter(d => d !== dia) : [...h.dias, dia]
-    }))
+    setHorarios(h => ({ ...h, dias: h.dias.includes(dia) ? h.dias.filter(d => d !== dia) : [...h.dias, dia] }))
   }
 
   function slugify(str) {
     return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
   }
+
+  const urlBase = window.location.origin
 
   return (
     <div className="min-h-screen bg-bg px-4 py-10 max-w-lg mx-auto page-enter">
@@ -119,8 +101,6 @@ export default function Onboarding() {
       <StepIndicator steps={STEPS} current={step} />
 
       <div key={step} className="page-enter">
-
-        {/* PASO 0 */}
         {step === 0 && (
           <form onSubmit={crearCuenta} className="flex flex-col gap-4">
             <h2 className="text-lg font-medium text-white mb-1">Creá tu cuenta</h2>
@@ -137,7 +117,6 @@ export default function Onboarding() {
           </form>
         )}
 
-        {/* PASO 1 */}
         {step === 1 && (
           <form onSubmit={guardarNegocio} className="flex flex-col gap-4">
             <h2 className="text-lg font-medium text-white mb-1">Tu negocio</h2>
@@ -160,7 +139,7 @@ export default function Onboarding() {
               <Input label="URL de tu agenda" value={negocio.slug}
                 onChange={e => setNegocio(n => ({ ...n, slug: slugify(e.target.value) }))}
                 placeholder="peluqueria-luna" required />
-              <p className="text-xs text-muted mt-1">turnos.app/<span className="text-accent">{negocio.slug || 'tu-negocio'}</span></p>
+              <p className="text-xs text-muted mt-1">{urlBase}/<span className="text-accent">{negocio.slug || 'tu-negocio'}</span></p>
             </div>
             <Input label="Teléfono (opcional)" value={negocio.telefono}
               onChange={e => setNegocio(n => ({ ...n, telefono: e.target.value }))}
@@ -175,7 +154,6 @@ export default function Onboarding() {
           </form>
         )}
 
-        {/* PASO 2 */}
         {step === 2 && (
           <form onSubmit={guardarHorarios} className="flex flex-col gap-5">
             <h2 className="text-lg font-medium text-white mb-1">Horarios de atención</h2>
@@ -218,7 +196,6 @@ export default function Onboarding() {
           </form>
         )}
 
-        {/* PASO 3 */}
         {step === 3 && (
           <form onSubmit={guardarServicios} className="flex flex-col gap-4">
             <h2 className="text-lg font-medium text-white mb-1">Tus servicios</h2>
@@ -264,7 +241,6 @@ export default function Onboarding() {
           </form>
         )}
 
-        {/* PASO 4: DONE */}
         {step === 4 && (
           <div className="text-center py-4 page-enter">
             <div className="w-20 h-20 bg-accent3 bg-opacity-15 border border-accent3 border-opacity-30 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
@@ -274,12 +250,12 @@ export default function Onboarding() {
             <p className="text-muted text-sm mb-6">Tu agenda está activa y lista para recibir turnos</p>
             <div className="bg-surface border border-border rounded-xl px-5 py-4 mb-8">
               <p className="text-xs font-mono text-muted mb-1">Tu URL pública</p>
-              <p className="text-accent font-mono text-sm">turnos.app/{negocioCreado?.slug}</p>
+              <p className="text-accent font-mono text-sm break-all">{urlBase}/{negocioCreado?.slug}</p>
             </div>
             <div className="flex flex-col gap-3">
               <Button onClick={() => navigate('/admin')} className="w-full">Ir al panel →</Button>
               <button
-                onClick={() => navigator.clipboard.writeText(`https://turnos.app/${negocioCreado?.slug}`)}
+                onClick={() => navigator.clipboard.writeText(`${urlBase}/${negocioCreado?.slug}`)}
                 className="text-sm text-muted hover:text-white transition-colors">
                 📋 Copiar link
               </button>

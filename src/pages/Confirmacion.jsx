@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useBookingStore } from '../store/bookingStore'
 import { Button } from '../components/ui'
@@ -7,10 +8,13 @@ export default function Confirmacion() {
   const { slug } = useParams()
   const { turnoConfirmado, servicio, fecha, hora } = useBookingStore()
 
-  if (!turnoConfirmado) {
-    navigate(`/${slug}`)
-    return null
-  }
+  useEffect(() => {
+    if (!turnoConfirmado) {
+      navigate(`/${slug}`, { replace: true })
+    }
+  }, [navigate, slug, turnoConfirmado])
+
+  if (!turnoConfirmado) return null
 
   const fechaFormateada = fecha
     ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-AR', {

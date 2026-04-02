@@ -7,6 +7,7 @@ import AdminLogin     from './pages/admin/Login'
 import Dashboard      from './pages/admin/Dashboard'
 import Configuracion  from './pages/admin/Configuracion'
 import Onboarding     from './pages/onboarding/Onboarding'
+import ProtectedRoute from './components/auth/ProtectedRoute'
 
 export default function App() {
   return (
@@ -17,8 +18,8 @@ export default function App() {
         <Route path="/:slug/confirmacion"  element={<Confirmacion />} />
         <Route path="/:slug/mis-turnos"    element={<MisTurnos />} />
         <Route path="/admin/login"         element={<AdminLogin />} />
-        <Route path="/admin"               element={<Dashboard />} />
-        <Route path="/admin/configuracion" element={<Configuracion />} />
+        <Route path="/admin"               element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/admin/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
         <Route path="/onboarding"          element={<Onboarding />} />
         <Route path="/"                    element={<Navigate to="/onboarding" replace />} />
       </Routes>

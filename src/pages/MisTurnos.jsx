@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Button, Input, Badge, Spinner, EmptyState } from '../components/ui'
@@ -80,9 +80,34 @@ export default function MisTurnos() {
   }
 
   // Auto-buscar si llega con teléfono en la URL
-  useState(() => {
-    if (searchParams.get('tel')) buscar()
-  }, [])
+  useEffect(() => {
+    const tel = searchParams.get('tel')?.trim()
+
+    if (!tel) return
+
+    async function autoBuscar() {
+      setLoading(true)
+      setError(null)
+      try {
+        const { data, error: err } = await supabase
+          .from('turnos')
+          .select('*, servicios(nombre), profesionales(nombre)')
+          .eq('cliente_telefono', tel)
+          .order('fecha', { ascending: false })
+          .order('hora_inicio', { ascending: false })
+
+        if (err) throw err
+        setTurnos(data || [])
+        setBuscado(true)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    autoBuscar()
+  }, [searchParams])
 
   return (
     <div className="min-h-screen bg-bg px-4 py-8 max-w-lg mx-auto page-enter">
