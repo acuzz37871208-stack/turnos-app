@@ -6,54 +6,45 @@ export function useSlots(negocioId, profesionalId, servicioId, fecha) {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!negocioId || !profesionalId || !servicioId || !fecha) return
+    if (!negocioId || !servicioId || !fecha) return
 
     async function fetchSlots() {
-  setLoading(true)
-  try {
-    let diaSemana
+      setLoading(true)
 
-if (fecha.includes('/')) {
-  const [day, month, year] = fecha.split('/').map(Number)
-  diaSemana = new Date(year, month - 1, day).getDay()
-} else {
-  const [year, month, day] = fecha.split('-').map(Number)
-  diaSemana = new Date(year, month - 1, day).getDay()
-}
+      try {
+        // 👉 1. calcular día correctamente
+        let diaSemana
 
-        // Horario del profesional ese día
-       let query = supabase
-  let query = supabase
-  .from('horarios')
-  .select('*')
-  .eq('dia_semana', diaSemana)
-  .eq('negocio_id', negocioId)
-  .select('*')
-  .eq('dia_semana', diaSemana)
+        if (fecha.includes('/')) {
+          const [day, month, year] = fecha.split('/').map(Number)
+          diaSemana = new Date(year, month - 1, day).getDay()
+        } else {
+          const [year, month, day] = fecha.split('-').map(Number)
+          diaSemana = new Date(year, month - 1, day).getDay()
+        }
 
-if (profesionalId && profesionalId !== 'cualquiera') {
-  query = query.eq('profesional_id', profesionalId)
-}
+        // 👉 2. traer horarios (SIN profesional)
+        const { data: horarios } = await supabase
+          .from('horarios')
+          .select('*')
+          .eq('dia_semana', diaSemana)
 
-const { data: horarios } = await query
+        const horario = horarios?.[0]
 
-const horario = horarios?.[0]
+        if (!horario) {
+          setSlots([])
+          return
+        }
 
-        if (!horario) { setSlots([]); return }
+        // 👉 3. turnos ocupados (SIN profesional)
+        const { data: turnosOcupados } = await supabase
+          .from('turnos')
+          .select('hora_inicio, hora_fin')
+          .eq('fecha', fecha)
+          .in('estado', ['pendiente', 'confirmado'])
+          .order('hora_inicio')
 
-        // Turnos ya reservados ese día para ese profesional
-        let turnosQuery = supabase
-  .from('turnos')
-  .select('hora_inicio, hora_fin')
-  .eq('fecha', fecha)
-  .in('estado', ['pendiente', 'confirmado'])
-
-if (profesionalId && profesionalId !== 'cualquiera') {
-  turnosQuery = turnosQuery.eq('profesional_id', profesionalId)
-}
-
-const { data: turnosOcupados } = await turnosQuery.order('hora_inicio')
-        // Duración del servicio
+        // 👉 4. duración del servicio
         const { data: servicio } = await supabase
           .from('servicios')
           .select('duracion_min')
@@ -61,12 +52,14 @@ const { data: turnosOcupados } = await turnosQuery.order('hora_inicio')
           .single()
 
         const duracion = servicio?.duracion_min || 30
+
+        // 👉 5. mapear ocupados
         const ocupados = (turnosOcupados || []).map(t => ({
-        inicio: t.hora_inicio,
-        fin: t.hora_fin
+          inicio: t.hora_inicio,
+          fin: t.hora_fin
         }))
 
-        // Generar slots
+        // 👉 6. generar slots
         const generados = generarSlots(
           horario.hora_inicio,
           horario.hora_fin,
@@ -74,7 +67,9 @@ const { data: turnosOcupados } = await turnosQuery.order('hora_inicio')
           ocupados,
           fecha
         )
+
         setSlots(generados)
+
       } catch (err) {
         console.error(err)
         setSlots([])
@@ -89,13 +84,20 @@ const { data: turnosOcupados } = await turnosQuery.order('hora_inicio')
   return { slots, loading }
 }
 
+
+// =====================
+// GENERADOR DE SLOTS
+// =====================
+
 function generarSlots(horaInicio, horaFin, duracionMin, ocupados, fecha) {
   const slots = []
+
   const [hI, mI] = horaInicio.split(':').map(Number)
   const [hF, mF] = horaFin.split(':').map(Number)
 
   let current = hI * 60 + mI
   const fin = hF * 60 + mF
+
   const ahora = new Date()
   const esHoy = fecha === ahora.toISOString().split('T')[0]
 
@@ -103,10 +105,13 @@ function generarSlots(horaInicio, horaFin, duracionMin, ocupados, fecha) {
     const slotInicio = minutosAHora(current)
     const slotFin = minutosAHora(current + duracionMin)
 
-    // Si es hoy, no mostrar slots pasados
+    // evitar horarios pasados
     if (esHoy) {
       const slotDate = new Date(`${fecha}T${slotInicio}`)
-      if (slotDate <= ahora) { current += duracionMin; continue }
+      if (slotDate <= ahora) {
+        current += duracionMin
+        continue
+      }
     }
 
     const ocupado = ocupados.some(t => {
@@ -115,12 +120,22 @@ function generarSlots(horaInicio, horaFin, duracionMin, ocupados, fecha) {
       return current < tF && (current + duracionMin) > tI
     })
 
-    slots.push({ hora: slotInicio, horaFin: slotFin, disponible: !ocupado })
+    slots.push({
+      hora: slotInicio,
+      horaFin: slotFin,
+      disponible: !ocupado
+    })
+
     current += duracionMin
   }
 
   return slots
 }
 
-const minutosAHora = (m) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
-const horaAMinutos = (h) => { const [hh,mm] = h.split(':').map(Number); return hh*60+mm }
+const minutosAHora = (m) =>
+  `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+
+const horaAMinutos = (h) => {
+  const [hh, mm] = h.split(':').map(Number)
+  return hh * 60 + mm
+}
