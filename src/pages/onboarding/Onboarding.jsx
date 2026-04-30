@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { supabase } from '../../services/supabase'
 import { Input, Button, Spinner, StepIndicator } from '../../components/ui'
 
 const STEPS = ['Cuenta', 'Negocio', 'Horarios', 'Servicios', '¡Listo!']

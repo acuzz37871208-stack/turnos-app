@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore } from '../../store/bookingStore'
-import { supabase } from '../../lib/supabase'
+import { supabase } from '../../services/supabase'
 import { Button, Spinner } from '../../components/ui'
 
 const SIN_PROFESIONAL = ['cancha']
@@ -32,13 +32,35 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
   async function confirmar() {
     setLoading(true)
     setError(null)
+
     try {
+      const profesionalId =
+        (!usaProfesional || profesional?.id === 'cualquiera')
+          ? null
+          : profesional?.id
+
+      // 🔒 1. verificar si ya existe turno
+      const { data: existente } = await supabase
+        .from('turnos')
+        .select('id')
+        .eq('profesional_id', profesionalId)
+        .eq('fecha', fecha)
+        .eq('hora_inicio', hora)
+        .maybeSingle()
+
+      if (existente) {
+        setError('Ese horario ya fue reservado')
+        setLoading(false)
+        return
+      }
+
+      // ✅ 2. crear turno
       const { data, error: err } = await supabase
         .from('turnos')
         .insert({
           negocio_id:       negocio.id,
           servicio_id:      servicio.id,
-          profesional_id:   (!usaProfesional || profesional?.id === 'cualquiera') ? null : profesional?.id,
+          profesional_id:   profesionalId,
           cliente_nombre:   cliente.nombre,
           cliente_telefono: cliente.telefono,
           cliente_email:    cliente.email,
@@ -55,7 +77,7 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
 
       setTurnoConfirmado(data)
 
-      // Enviar notificación por email (no bloquea el flujo)
+      // enviar notificación (no bloquea)
       enviarNotificacion(data).catch(console.error)
 
       if (requierePago && onNext) {
@@ -63,8 +85,10 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
       } else {
         navigate(`/${slug}/confirmacion`)
       }
+
     } catch (err) {
-      setError(err.message)
+      console.error(err)
+      setError('Error al crear el turno')
     } finally {
       setLoading(false)
     }
@@ -73,14 +97,16 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
   async function enviarNotificacion(turno) {
     await supabase.functions.invoke('notificar-turno', {
       body: {
-        turno_id:   turno.id,
+        turno_id: turno.id,
         negocio_id: negocio.id,
       }
     })
   }
 
   const fechaFormateada = new Date(fecha + 'T12:00:00').toLocaleDateString('es-AR', {
-    weekday: 'long', day: 'numeric', month: 'long'
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long'
   })
 
   return (
@@ -113,14 +139,18 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
         </div>
       )}
 
+      {/* 🔴 ERROR VISIBLE */}
       {error && (
-        <div className="bg-accent2 bg-opacity-10 border border-accent2 border-opacity-30 rounded-xl px-5 py-3 mb-4">
-          <p className="text-sm text-accent2">{error}</p>
+        <div className="bg-red-500 bg-opacity-10 border border-red-500 border-opacity-30 rounded-xl px-5 py-3 mb-4">
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
       <div className="flex gap-3">
-        <Button variant="ghost" onClick={onBack} disabled={loading}>Volver</Button>
+        <Button variant="ghost" onClick={onBack} disabled={loading}>
+          Volver
+        </Button>
+
         <Button onClick={confirmar} disabled={loading} className="flex-1">
           {loading ? <Spinner size="sm" /> : requierePago ? 'Ir al pago →' : 'Confirmar turno'}
         </Button>

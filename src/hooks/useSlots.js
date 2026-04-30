@@ -30,6 +30,7 @@ export function useSlots(negocioId, profesionalId, servicioId, fecha) {
           .eq('profesional_id', profesionalId)
           .eq('fecha', fecha)
           .in('estado', ['pendiente', 'confirmado'])
+          .order('hora_inicio')
 
         // Duración del servicio
         const { data: servicio } = await supabase
@@ -39,7 +40,10 @@ export function useSlots(negocioId, profesionalId, servicioId, fecha) {
           .single()
 
         const duracion = servicio?.duracion_min || 30
-        const ocupados = turnosOcupados || []
+        const ocupados = (turnosOcupados || []).map(t => ({
+        inicio: t.hora_inicio,
+        fin: t.hora_fin
+        }))
 
         // Generar slots
         const generados = generarSlots(
@@ -85,8 +89,8 @@ function generarSlots(horaInicio, horaFin, duracionMin, ocupados, fecha) {
     }
 
     const ocupado = ocupados.some(t => {
-      const tI = horaAMinutos(t.hora_inicio)
-      const tF = horaAMinutos(t.hora_fin)
+      const tI = horaAMinutos(t.inicio)
+      const tF = horaAMinutos(t.fin)
       return current < tF && (current + duracionMin) > tI
     })
 

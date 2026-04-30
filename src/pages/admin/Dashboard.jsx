@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { supabase } from '../../services/supabase'
 import { Badge, Spinner, Button } from '../../components/ui'
 
 function MetricCard({ label, value, color }) {
@@ -49,6 +49,7 @@ export default function AdminDashboard() {
       .select('*, servicios(nombre), profesionales(nombre)')
       .eq('negocio_id', negocioId)
       .eq('fecha', fecha)
+      .order('estado')
       .order('hora_inicio')
     setTurnos(data || [])
     setLoading(false)

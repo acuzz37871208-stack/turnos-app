@@ -1,3 +1,4 @@
+import { useAuth } from './context/AuthContext'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Landing        from './pages/Landing'
 import BookingFlow    from './pages/BookingFlow'
@@ -10,6 +11,10 @@ import Onboarding     from './pages/onboarding/Onboarding'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 
 export default function App() {
+  const { loading } = useAuth()
+
+  if (loading) return <p>Cargando...</p>
+
   return (
     <BrowserRouter>
       <Routes>

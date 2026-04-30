@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { supabase } from '../../services/supabase'
 import { Spinner } from '../ui'
 
 export default function ProtectedRoute({ children }) {
