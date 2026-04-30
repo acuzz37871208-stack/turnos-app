@@ -9,10 +9,17 @@ export function useSlots(negocioId, profesionalId, servicioId, fecha) {
     if (!negocioId || !profesionalId || !servicioId || !fecha) return
 
     async function fetchSlots() {
-      setLoading(true)
-      try {
-        const [year, month, day] = fecha.split('-').map(Number)
-        const diaSemana = new Date(year, month - 1, day).getDay()
+  setLoading(true)
+  try {
+    let diaSemana
+
+if (fecha.includes('/')) {
+  const [day, month, year] = fecha.split('/').map(Number)
+  diaSemana = new Date(year, month - 1, day).getDay()
+} else {
+  const [year, month, day] = fecha.split('-').map(Number)
+  diaSemana = new Date(year, month - 1, day).getDay()
+}
 
         // Horario del profesional ese día
        let query = supabase
