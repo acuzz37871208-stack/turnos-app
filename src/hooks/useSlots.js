@@ -12,18 +12,28 @@ export function useSlots(negocioId, profesionalId, servicioId, fecha) {
       setLoading(true)
 
       try {
-        // 👉 1. calcular día correctamente
-        let diaSemana
-
-        if (fecha.includes('/')) {
-          const [day, month, year] = fecha.split('/').map(Number)
-          diaSemana = new Date(year, month - 1, day).getDay()
-        } else {
-          const [year, month, day] = fecha.split('-').map(Number)
-          diaSemana = new Date(year, month - 1, day).getDay()
+        // =========================
+        // NORMALIZAR FECHA
+        // =========================
+        function normalizarFecha(f) {
+          if (f.includes('/')) {
+            const [d, m, y] = f.split('/')
+            return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
+          }
+          return f
         }
 
-        // 👉 2. traer horarios (SIN profesional)
+        const fechaSQL = normalizarFecha(fecha)
+
+        // =========================
+        // DIA DE LA SEMANA
+        // =========================
+        const [year, month, day] = fechaSQL.split('-').map(Number)
+        const diaSemana = new Date(year, month - 1, day).getDay()
+
+        // =========================
+        // HORARIOS (SIN PROFESIONAL)
+        // =========================
         const { data: horarios } = await supabase
           .from('horarios')
           .select('*')
@@ -36,15 +46,19 @@ export function useSlots(negocioId, profesionalId, servicioId, fecha) {
           return
         }
 
-        // 👉 3. turnos ocupados (SIN profesional)
+        // =========================
+        // TURNOS OCUPADOS (SIN PROFESIONAL)
+        // =========================
         const { data: turnosOcupados } = await supabase
           .from('turnos')
           .select('hora_inicio, hora_fin')
-          .eq('fecha', fecha)
+          .eq('fecha', fechaSQL)
           .in('estado', ['pendiente', 'confirmado'])
           .order('hora_inicio')
 
-        // 👉 4. duración del servicio
+        // =========================
+        // DURACION SERVICIO
+        // =========================
         const { data: servicio } = await supabase
           .from('servicios')
           .select('duracion_min')
@@ -53,19 +67,20 @@ export function useSlots(negocioId, profesionalId, servicioId, fecha) {
 
         const duracion = servicio?.duracion_min || 30
 
-        // 👉 5. mapear ocupados
         const ocupados = (turnosOcupados || []).map(t => ({
           inicio: t.hora_inicio,
           fin: t.hora_fin
         }))
 
-        // 👉 6. generar slots
+        // =========================
+        // GENERAR SLOTS
+        // =========================
         const generados = generarSlots(
           horario.hora_inicio,
           horario.hora_fin,
           duracion,
           ocupados,
-          fecha
+          fechaSQL
         )
 
         setSlots(generados)
@@ -84,10 +99,9 @@ export function useSlots(negocioId, profesionalId, servicioId, fecha) {
   return { slots, loading }
 }
 
-
-// =====================
+// =========================
 // GENERADOR DE SLOTS
-// =====================
+// =========================
 
 function generarSlots(horaInicio, horaFin, duracionMin, ocupados, fecha) {
   const slots = []
@@ -105,7 +119,6 @@ function generarSlots(horaInicio, horaFin, duracionMin, ocupados, fecha) {
     const slotInicio = minutosAHora(current)
     const slotFin = minutosAHora(current + duracionMin)
 
-    // evitar horarios pasados
     if (esHoy) {
       const slotDate = new Date(`${fecha}T${slotInicio}`)
       if (slotDate <= ahora) {
