@@ -24,7 +24,9 @@ if (profesionalId && profesionalId !== 'cualquiera') {
   query = query.eq('profesional_id', profesionalId)
 }
 
-const { data: horario } = await query.single()
+const { data: horarios } = await query
+
+const horario = horarios?.[0]
 
         if (!horario) { setSlots([]); return }
 
