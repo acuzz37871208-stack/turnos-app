@@ -134,37 +134,46 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {turnosFiltrados.map(t => (
-              <div key={t.id} className="bg-surface border border-border rounded-xl p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <p className="font-medium text-white">{t.cliente_nombre}</p>
-                    <p className="text-sm text-muted">{t.servicios?.nombre} · {t.hora_inicio}hs</p>
-                    {t.profesionales && <p className="text-xs text-muted">con {t.profesionales.nombre}</p>}
-                    {t.nota && <p className="text-xs text-muted italic mt-1">"{t.nota}"</p>}
-                    <p className="text-xs text-muted mt-1">{t.cliente_telefono} · {t.cliente_email}</p>
-                  </div>
-                  <Badge estado={t.estado} />
-                </div>
+  {turnosFiltrados.map(t => (
+    <div
+      key={t.id}
+      className={`bg-surface border border-border rounded-xl p-5 ${
+        t.estado === 'pendiente' ? 'ring-2 ring-yellow-400/40' : ''
+      }`}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <p className="font-medium text-white">{t.cliente_nombre}</p>
+          <p className="text-sm text-muted">{t.servicios?.nombre} · {t.hora_inicio}hs</p>
+          {t.profesionales && <p className="text-xs text-muted">con {t.profesionales.nombre}</p>}
+          {t.nota && <p className="text-xs text-muted italic mt-1">"{t.nota}"</p>}
+          <p className="text-xs text-muted mt-1">{t.cliente_telefono} · {t.cliente_email}</p>
+        </div>
+        <Badge estado={t.estado} />
+      </div>
 
-                {/* Acciones rápidas */}
-                <div className="flex gap-2 mt-3 pt-3 border-t border-border">
-                  {t.estado === 'pendiente' && (
-                    <button onClick={() => cambiarEstado(t.id, 'atendido')}
-                      className="text-xs text-accent3 border border-accent3 border-opacity-30 bg-accent3 bg-opacity-10 px-3 py-1.5 rounded-lg hover:bg-opacity-20 transition">
-                      ✓ Marcar atendido
-                    </button>
-                  )}
-                  {['pendiente','confirmado'].includes(t.estado) && (
-                    <button onClick={() => cambiarEstado(t.id, 'cancelado')}
-                      className="text-xs text-accent2 border border-accent2 border-opacity-30 bg-accent2 bg-opacity-10 px-3 py-1.5 rounded-lg hover:bg-opacity-20 transition">
-                      Cancelar
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="flex gap-2 mt-3 pt-3 border-t border-border">
+        {t.estado === 'pendiente' && (
+          <button
+            onClick={() => cambiarEstado(t.id, 'atendido')}
+            className="text-xs text-accent3 border border-accent3 border-opacity-30 bg-accent3 bg-opacity-10 px-3 py-1.5 rounded-lg hover:bg-opacity-20 transition"
+          >
+            ✓ Marcar atendido
+          </button>
+        )}
+
+        {['pendiente','confirmado'].includes(t.estado) && (
+          <button
+            onClick={() => cambiarEstado(t.id, 'cancelado')}
+            className="text-xs text-accent2 border border-accent2 border-opacity-30 bg-accent2 bg-opacity-10 px-3 py-1.5 rounded-lg hover:bg-opacity-20 transition"
+          >
+            Cancelar
+          </button>
+        )}
+      </div>
+    </div>
+  ))}
+</div>
         )}
       </div>
     </div>
