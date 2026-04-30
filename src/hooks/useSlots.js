@@ -14,24 +14,31 @@ export function useSlots(negocioId, profesionalId, servicioId, fecha) {
         const diaSemana = new Date(fecha + 'T12:00:00').getDay()
 
         // Horario del profesional ese día
-        const { data: horario } = await supabase
-          .from('horarios')
-          .select('*')
-          .eq('profesional_id', profesionalId)
-          .eq('dia_semana', diaSemana)
-          .single()
+       let query = supabase
+  .from('horarios')
+  .select('*')
+  .eq('dia_semana', diaSemana)
+
+if (profesionalId && profesionalId !== 'cualquiera') {
+  query = query.eq('profesional_id', profesionalId)
+}
+
+const { data: horario } = await query.single()
 
         if (!horario) { setSlots([]); return }
 
         // Turnos ya reservados ese día para ese profesional
-        const { data: turnosOcupados } = await supabase
-          .from('turnos')
-          .select('hora_inicio, hora_fin')
-          .eq('profesional_id', profesionalId)
-          .eq('fecha', fecha)
-          .in('estado', ['pendiente', 'confirmado'])
-          .order('hora_inicio')
+        let turnosQuery = supabase
+  .from('turnos')
+  .select('hora_inicio, hora_fin')
+  .eq('fecha', fecha)
+  .in('estado', ['pendiente', 'confirmado'])
 
+if (profesionalId && profesionalId !== 'cualquiera') {
+  turnosQuery = turnosQuery.eq('profesional_id', profesionalId)
+}
+
+const { data: turnosOcupados } = await turnosQuery.order('hora_inicio')
         // Duración del servicio
         const { data: servicio } = await supabase
           .from('servicios')
