@@ -11,7 +11,8 @@ export function useSlots(negocioId, profesionalId, servicioId, fecha) {
     async function fetchSlots() {
       setLoading(true)
       try {
-        const diaSemana = new Date(fecha + 'T12:00:00').getDay()
+        const [year, month, day] = fecha.split('-').map(Number)
+        const diaSemana = new Date(year, month - 1, day).getDay()
 
         // Horario del profesional ese día
        let query = supabase
