@@ -43,7 +43,6 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
       const { data: existente } = await supabase
         .from('turnos')
         .select('id')
-        .eq('profesional_id', profesionalId)
         .eq('fecha', fecha)
         .eq('hora_inicio', hora)
         .maybeSingle()

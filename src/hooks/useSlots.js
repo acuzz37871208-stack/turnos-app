@@ -16,7 +16,11 @@ export function useSlots(negocioId, profesionalId, servicioId, fecha) {
 
         // Horario del profesional ese día
        let query = supabase
+  let query = supabase
   .from('horarios')
+  .select('*')
+  .eq('dia_semana', diaSemana)
+  .eq('negocio_id', negocioId)
   .select('*')
   .eq('dia_semana', diaSemana)
 
