@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { Input, Button, Spinner } from '../../components/ui'
@@ -48,7 +48,7 @@ export default function Configuracion() {
       setNegocio(data); setLoading(false)
     }
     init()
-  }, [])
+  }, [navigate])
 
   if (loading) return <div className="min-h-screen bg-bg flex items-center justify-center"><Spinner size="lg" /></div>
 
@@ -150,12 +150,12 @@ function TabServicios({ negocio }) {
   const [editando, setEditando] = useState(null)
   const [nuevo, setNuevo] = useState(false)
 
-  useEffect(() => { fetchServicios() }, [])
-
-  async function fetchServicios() {
+  const fetchServicios = useCallback(async () => {
     const { data } = await supabase.from('servicios').select('*').eq('negocio_id', negocio.id).order('nombre')
     setServicios(data || []); setLoading(false)
-  }
+  }, [negocio.id])
+
+  useEffect(() => { fetchServicios() }, [fetchServicios])
 
   async function toggleActivo(s) {
     await supabase.from('servicios').update({ activo: !s.activo }).eq('id', s.id); fetchServicios()
@@ -246,12 +246,12 @@ function TabEquipo({ negocio }) {
   const [editando, setEditando] = useState(null)
   const label = negocio?.label_profesional || 'Profesional'
 
-  useEffect(() => { fetchProfesionales() }, [])
-
-  async function fetchProfesionales() {
+  const fetchProfesionales = useCallback(async () => {
     const { data } = await supabase.from('profesionales').select('*').eq('negocio_id', negocio.id).order('nombre')
     setProfesionales(data || []); setLoading(false)
-  }
+  }, [negocio.id])
+
+  useEffect(() => { fetchProfesionales() }, [fetchProfesionales])
 
   async function toggleActivo(p) {
     await supabase.from('profesionales').update({ activo: !p.activo }).eq('id', p.id); fetchProfesionales()
@@ -334,9 +334,7 @@ function TabHorarios({ negocio }) {
   const [saved, setSaved] = useState(false)
   const [nuevaFecha, setNuevaFecha] = useState({ fecha: '', tipo: 'cerrado', hora_inicio: '09:00', hora_fin: '18:00', motivo: '' })
 
-  useEffect(() => { fetchData() }, [])
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     const [{ data: profs }, { data: hors }, { data: esp }] = await Promise.all([
       supabase.from('profesionales').select('*').eq('negocio_id', negocio.id).eq('activo', true),
       supabase.from('horarios').select('*'),
@@ -348,7 +346,9 @@ function TabHorarios({ negocio }) {
     ;(profs || []).forEach(p => { map[p.id] = {}; for (let d = 0; d < 7; d++) map[p.id][d] = null })
     ;(hors || []).forEach(h => { if (map[h.profesional_id]) map[h.profesional_id][h.dia_semana] = { hora_inicio: h.hora_inicio, hora_fin: h.hora_fin, id: h.id } })
     setHorarios(map); setLoading(false)
-  }
+  }, [negocio.id])
+
+  useEffect(() => { fetchData() }, [fetchData])
 
   function toggleDia(profId, dia) {
     setHorarios(h => ({ ...h, [profId]: { ...h[profId], [dia]: h[profId][dia] ? null : { hora_inicio: '09:00', hora_fin: '18:00' } } }))

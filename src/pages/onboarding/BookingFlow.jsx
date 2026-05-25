@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useNegocio } from '../hooks/useNegocio'
-import { useBookingStore } from '../store/bookingStore'
-import { Button, StepIndicator, Spinner } from '../components/ui'
-import StepServicio from './booking/StepServicio'
-import StepProfesional from './booking/StepProfesional'
-import StepFechaHora from './booking/StepFechaHora'
-import StepCliente from './booking/StepCliente'
-import StepResumen from './booking/StepResumen'
-import StepPago from './booking/StepPago'
+import { useNegocio } from '../../hooks/useNegocio'
+import { useBookingStore } from '../../store/bookingStore'
+import { Button, StepIndicator, Spinner } from '../../components/ui'
+import StepServicio from '../booking/StepServicio'
+import StepProfesional from '../booking/StepProfesional'
+import StepFechaHora from '../booking/StepFechaHora'
+import StepCliente from '../booking/StepCliente'
+import StepResumen from '../booking/StepResumen'
+import StepPago from '../booking/StepPago'
 
 const SIN_PROFESIONAL = ['cancha']
 

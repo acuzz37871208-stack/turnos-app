@@ -1,11 +1,9 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useBookingStore } from '../../store/bookingStore'
 import { supabase } from '../../lib/supabase'
 import { Button, Spinner } from '../../components/ui'
 
 export default function StepPago({ negocio, slug, onBack }) {
-  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const { turnoConfirmado, servicio } = useBookingStore()
@@ -31,7 +29,7 @@ export default function StepPago({ negocio, slug, onBack }) {
 
       // Redirigir al checkout de MercadoPago
       window.location.href = data.init_point
-    } catch (err) {
+    } catch {
       setError('No se pudo iniciar el pago. Intentá de nuevo.')
     } finally {
       setLoading(false)

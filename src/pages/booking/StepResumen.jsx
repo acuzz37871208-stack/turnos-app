@@ -39,21 +39,6 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
           ? null
           : profesional?.id
 
-      // 🔒 1. verificar si ya existe turno
-      const { data: existente } = await supabase
-        .from('turnos')
-        .select('id')
-        .eq('fecha', fecha)
-        .eq('hora_inicio', hora)
-        .maybeSingle()
-
-      if (existente) {
-        setError('Ese horario ya fue reservado')
-        setLoading(false)
-        return
-      }
-
-      // ✅ 2. crear turno
       const { data, error: err } = await supabase
         .from('turnos')
         .insert({
@@ -72,7 +57,15 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
         .select()
         .single()
 
-      if (err) throw err
+      if (err) {
+        if (err.code === '23505') {
+          setError('Ese horario ya fue reservado')
+          setLoading(false)
+          return
+        }
+
+        throw err
+      }
 
       setTurnoConfirmado(data)
 

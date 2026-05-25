@@ -31,34 +31,57 @@ export function useSlots(negocioId, profesionalId, servicioId, fecha) {
         const [year, month, day] = fechaSQL.split('-').map(Number)
         const diaSemana = new Date(year, month - 1, day).getDay()
 
-        // =========================
-        // HORARIOS (SIN PROFESIONAL)
-        // =========================
-        const { data: horarios } = await supabase
+        const profesionalIds = profesionalId
+          ? [profesionalId]
+          : await fetchProfesionalesDelNegocio(negocioId)
+
+        if (profesionalIds.length === 0) {
+          setSlots([])
+          return
+        }
+
+        const { data: especial } = await supabase
+          .from('horarios_especiales')
+          .select('*')
+          .eq('negocio_id', negocioId)
+          .eq('fecha', fechaSQL)
+          .maybeSingle()
+
+        if (especial?.tipo === 'cerrado') {
+          setSlots([])
+          return
+        }
+
+        const horariosQuery = supabase
           .from('horarios')
           .select('*')
           .eq('dia_semana', diaSemana)
+          .in('profesional_id', profesionalIds)
 
-        const horario = horarios?.[0]
+        const { data: horarios } = await horariosQuery
+        const horario = especial?.tipo === 'horario_especial'
+          ? especial
+          : horarios?.[0]
 
         if (!horario) {
           setSlots([])
           return
         }
 
-        // =========================
-        // TURNOS OCUPADOS (SIN PROFESIONAL)
-        // =========================
-        const { data: turnosOcupados } = await supabase
-          .from('turnos')
+        let turnosQuery = supabase
+          .from('turnos_disponibilidad')
           .select('hora_inicio, hora_fin')
+          .eq('negocio_id', negocioId)
           .eq('fecha', fechaSQL)
-          .in('estado', ['pendiente', 'confirmado'])
+          .in('estado', ['pendiente', 'pendiente_pago', 'confirmado'])
           .order('hora_inicio')
 
-        // =========================
-        // DURACION SERVICIO
-        // =========================
+        if (profesionalId) {
+          turnosQuery = turnosQuery.eq('profesional_id', profesionalId)
+        }
+
+        const { data: turnosOcupados } = await turnosQuery
+
         const { data: servicio } = await supabase
           .from('servicios')
           .select('duracion_min')
@@ -97,6 +120,16 @@ export function useSlots(negocioId, profesionalId, servicioId, fecha) {
   }, [negocioId, profesionalId, servicioId, fecha])
 
   return { slots, loading }
+}
+
+async function fetchProfesionalesDelNegocio(negocioId) {
+  const { data } = await supabase
+    .from('profesionales')
+    .select('id')
+    .eq('negocio_id', negocioId)
+    .eq('activo', true)
+
+  return (data || []).map((profesional) => profesional.id)
 }
 
 // =========================

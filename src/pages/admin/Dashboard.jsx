@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../services/supabase'
 import { Badge, Spinner, Button } from '../../components/ui'
@@ -20,6 +20,19 @@ export default function AdminDashboard() {
   const [filtroFecha, setFiltroFecha] = useState(new Date().toISOString().split('T')[0])
   const [filtroEstado, setFiltroEstado] = useState('todos')
 
+  const fetchTurnos = useCallback(async (negocioId, fecha) => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('turnos')
+      .select('*, servicios(nombre), profesionales(nombre)')
+      .eq('negocio_id', negocioId)
+      .eq('fecha', fecha)
+      .order('estado')
+      .order('hora_inicio')
+    setTurnos(data || [])
+    setLoading(false)
+  }, [])
+
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -31,7 +44,7 @@ export default function AdminDashboard() {
         .eq('owner_id', user.id)
         .single()
 
- setNegocio(neg)
+      setNegocio(neg)
       if (neg) {
         fetchTurnos(neg.id, filtroFecha)
         document.body.style.backgroundColor = neg.color_fondo || '#0a0a0f'
@@ -40,20 +53,7 @@ export default function AdminDashboard() {
       }
     }
     init()
-  }, [])
-
-  async function fetchTurnos(negocioId, fecha) {
-    setLoading(true)
-    const { data } = await supabase
-      .from('turnos')
-      .select('*, servicios(nombre), profesionales(nombre)')
-      .eq('negocio_id', negocioId)
-      .eq('fecha', fecha)
-      .order('estado')
-      .order('hora_inicio')
-    setTurnos(data || [])
-    setLoading(false)
-  }
+  }, [fetchTurnos, filtroFecha, navigate])
 
   async function cambiarEstado(id, estado) {
     await supabase.from('turnos').update({ estado }).eq('id', id)

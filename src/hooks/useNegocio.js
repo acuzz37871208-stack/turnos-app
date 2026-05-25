@@ -15,7 +15,7 @@ export function useNegocio(slug) {
       setLoading(true)
       try {
         const { data: neg, error: negErr } = await supabase
-          .from('negocios')
+          .from('negocios_public')
           .select('*')
           .eq('slug', slug)
           .single()
