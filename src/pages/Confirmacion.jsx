@@ -49,7 +49,7 @@ export default function Confirmacion() {
 
         <div className="flex flex-col gap-3">
           <Button
-            onClick={() => navigate(`/${slug}/mis-turnos?tel=${turnoConfirmado.cliente_telefono}`)}
+            onClick={() => navigate(`/${slug}/mis-turnos?tel=${encodeURIComponent(turnoConfirmado.cliente_telefono)}&email=${encodeURIComponent(turnoConfirmado.cliente_email)}`)}
             className="w-full"
           >
             Ver mis turnos
