@@ -30,7 +30,11 @@ select
   hora_fin,
   estado
 from public.turnos
-where estado in ('pendiente', 'pendiente_pago', 'confirmado');
+where estado in ('pendiente', 'confirmado')
+   or (
+     estado = 'pendiente_pago'
+     and (mp_expires_at is null or mp_expires_at > now())
+   );
 
 grant usage on schema public to anon;
 grant usage on schema public to authenticated;

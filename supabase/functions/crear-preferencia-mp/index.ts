@@ -24,6 +24,7 @@ serve(async (req) => {
       email,
       success_url,
       failure_url,
+      notification_url,
     } = await req.json()
 
     // Validación básica
@@ -61,6 +62,11 @@ serve(async (req) => {
       )
     }
 
+    const expirationDate = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    const webhookUrl = notification_url
+      ? `${notification_url}?turno_id=${encodeURIComponent(turno_id)}`
+      : undefined
+
     // Crear preferencia en MercadoPago
     const preferencia = {
       items: [
@@ -82,8 +88,9 @@ serve(async (req) => {
       },
       auto_return: 'approved',
       external_reference: turno_id,
-      // Expiración: 30 minutos para completar el pago
-      expiration_date_to: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      notification_url: webhookUrl,
+      expires: true,
+      expiration_date_to: expirationDate,
     }
 
     const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
@@ -106,10 +113,13 @@ serve(async (req) => {
 
     const mpData = await mpRes.json()
 
-    // Guardar el preference_id en el turno
+    // Guardar el preference_id y vencimiento en el turno
     await supabase
       .from('turnos')
-      .update({ mp_preference_id: mpData.id })
+      .update({
+        mp_preference_id: mpData.id,
+        mp_expires_at: expirationDate,
+      })
       .eq('id', turno_id)
 
     return new Response(

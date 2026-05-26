@@ -7,14 +7,17 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 serve(async (req) => {
   try {
-    const body = await req.json()
+    const url = new URL(req.url)
+    const turnoIdFromQuery = url.searchParams.get('turno_id')
+    const body = await req.json().catch(() => ({}))
 
-    // MP envía notificaciones de tipo "payment"
-    if (body.type !== 'payment') {
+    // MercadoPago puede enviar "type" o "topic" según el origen de la notificación.
+    const notificationType = body.type || body.topic || url.searchParams.get('topic')
+    if (notificationType !== 'payment') {
       return new Response('ok', { status: 200 })
     }
 
-    const paymentId = body.data?.id
+    const paymentId = body.data?.id || url.searchParams.get('data.id') || url.searchParams.get('id')
     if (!paymentId) return new Response('ok', { status: 200 })
 
     // Necesitamos el Access Token del negocio para consultar el pago.
@@ -27,22 +30,20 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Buscar el turno por mp_preference_id buscando el payment en MP
-    // Usamos el token del negocio obtenido del turno
-    // Para simplificar, buscamos el turno por payment id si ya fue guardado
-    const { data: turno } = await supabase
+    let turnoQuery = supabase
       .from('turnos')
       .select('id, negocio_id, estado, negocios(mp_access_token)')
-      .eq('mp_payment_id', String(paymentId))
-      .maybeSingle()
 
-    // Si no lo encontramos por payment_id, buscar via external_reference usando la API de MP
-    // Esto requiere hacer un GET a MP para obtener el external_reference
-    // Usamos SUPABASE_SERVICE_ROLE_KEY para consultar todos los negocios con token
+    if (turnoIdFromQuery) {
+      turnoQuery = turnoQuery.eq('id', turnoIdFromQuery)
+    } else {
+      turnoQuery = turnoQuery.eq('mp_payment_id', String(paymentId))
+    }
+
+    const { data: turno } = await turnoQuery.maybeSingle()
+
     if (!turno) {
-      // Intentar obtener el pago usando token hardcodeado de prueba
-      // En producción deberías tener un token maestro de Marketplace
-      console.log(`Payment ${paymentId} not found by id, skipping`)
+      console.log(`Turno not found for payment ${paymentId}`)
       return new Response('ok', { status: 200 })
     }
 
@@ -57,6 +58,12 @@ serve(async (req) => {
     if (!mpRes.ok) return new Response('ok', { status: 200 })
 
     const pago = await mpRes.json()
+    const paymentExternalReference = pago.external_reference
+
+    if (paymentExternalReference && paymentExternalReference !== turno.id) {
+      console.log(`Payment ${paymentId} external_reference mismatch`)
+      return new Response('ok', { status: 200 })
+    }
 
     // Mapear estado de MP → estado del turno
     const estadoMap: Record<string, string> = {

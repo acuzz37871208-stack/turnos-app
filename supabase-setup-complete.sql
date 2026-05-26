@@ -77,6 +77,7 @@ create table if not exists turnos (
                     check (estado in ('pendiente','pendiente_pago','confirmado','atendido','cancelado')),
   mp_preference_id  text,
   mp_payment_id     text,
+  mp_expires_at     timestamptz,
   created_at        timestamptz default now()
 );
 
@@ -88,12 +89,16 @@ alter table negocios
   add column if not exists color_fondo text default '#0a0a0f',
   add column if not exists mp_access_token text;
 
+alter table turnos
+  add column if not exists mp_expires_at timestamptz;
+
 -- ── ÍNDICES ───────────────────────────────────
 
 create index if not exists turnos_negocio_fecha_idx on turnos (negocio_id, fecha);
 create index if not exists turnos_cliente_telefono_idx on turnos (cliente_telefono);
 create index if not exists negocios_slug_idx on negocios (slug);
 create index if not exists horarios_especiales_negocio_fecha_idx on horarios_especiales (negocio_id, fecha);
+create index if not exists turnos_mp_expires_at_idx on turnos (mp_expires_at) where estado = 'pendiente_pago';
 
 create unique index if not exists turnos_unicos_activos
   on turnos (
@@ -209,11 +214,36 @@ create or replace view negocios_public as
 create or replace view turnos_disponibilidad as
   select negocio_id, profesional_id, fecha, hora_inicio, hora_fin, estado
   from turnos
-  where estado in ('pendiente','pendiente_pago','confirmado');
+  where estado in ('pendiente', 'confirmado')
+     or (
+       estado = 'pendiente_pago'
+       and (mp_expires_at is null or mp_expires_at > now())
+     );
+
+create or replace function public.liberar_turnos_pago_vencido()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  affected_count integer;
+begin
+  update turnos
+  set estado = 'cancelado'
+  where estado = 'pendiente_pago'
+    and mp_expires_at is not null
+    and mp_expires_at < now();
+
+  get diagnostics affected_count = row_count;
+  return affected_count;
+end;
+$$;
 
 grant usage on schema public to anon, authenticated;
 grant select on negocios_public to anon, authenticated;
 grant select on turnos_disponibilidad to anon, authenticated;
+grant execute on function public.liberar_turnos_pago_vencido() to anon, authenticated;
 grant select on servicios, profesionales, horarios, horarios_especiales to anon, authenticated;
 grant insert on turnos to anon, authenticated;
 grant select, insert, update, delete on negocios, servicios, profesionales, horarios, horarios_especiales, turnos to authenticated;

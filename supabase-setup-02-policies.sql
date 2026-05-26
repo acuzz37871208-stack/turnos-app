@@ -141,6 +141,8 @@ create policy "turnos_client_cancel" on turnos
 grant usage on schema public to anon, authenticated;
 grant select on negocios_public to anon, authenticated;
 grant select on turnos_disponibilidad to anon, authenticated;
+grant execute on function public.liberar_turnos_pago_vencido() to anon;
+grant execute on function public.liberar_turnos_pago_vencido() to authenticated;
 grant select on servicios, profesionales, horarios, horarios_especiales to anon, authenticated;
 grant insert on turnos to anon, authenticated;
 grant select, insert, update, delete on negocios, servicios, profesionales, horarios, horarios_especiales, turnos to authenticated;

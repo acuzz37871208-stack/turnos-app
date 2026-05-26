@@ -12,6 +12,8 @@ export function useSlots(negocioId, profesionalId, servicioId, fecha) {
       setLoading(true)
 
       try {
+        await supabase.rpc('liberar_turnos_pago_vencido')
+
         // =========================
         // NORMALIZAR FECHA
         // =========================

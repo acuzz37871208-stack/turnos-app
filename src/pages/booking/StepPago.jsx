@@ -22,6 +22,7 @@ export default function StepPago({ negocio, slug, onBack }) {
           email:       turnoConfirmado.cliente_email,
           success_url: `${window.location.origin}/${slug}/confirmacion`,
           failure_url: `${window.location.origin}/${slug}/reservar`,
+          notification_url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mp-webhook`,
         }
       })
 

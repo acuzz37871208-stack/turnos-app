@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useBookingStore } from '../store/bookingStore'
 import { Button } from '../components/ui'
 
 export default function Confirmacion() {
   const navigate = useNavigate()
   const { slug } = useParams()
+  const [searchParams] = useSearchParams()
   const { turnoConfirmado, servicio, fecha, hora } = useBookingStore()
 
   useEffect(() => {
@@ -21,6 +22,22 @@ export default function Confirmacion() {
         weekday: 'long', day: 'numeric', month: 'long'
       })
     : ''
+  const paymentStatus = searchParams.get('status') || searchParams.get('collection_status')
+  const isPaymentReturn = Boolean(paymentStatus)
+  const isPendingPayment = ['pending', 'in_process'].includes(paymentStatus)
+  const isFailedPayment = ['failure', 'rejected', 'cancelled'].includes(paymentStatus)
+  const title = isPendingPayment
+    ? 'Pago pendiente'
+    : isFailedPayment
+      ? 'No pudimos confirmar el pago'
+      : isPaymentReturn
+        ? '¡Pago recibido!'
+        : '¡Turno confirmado!'
+  const description = isPendingPayment
+    ? 'Tu turno queda pendiente hasta que MercadoPago confirme el cobro.'
+    : isFailedPayment
+      ? 'El turno no queda confirmado. Podés volver a intentar la reserva.'
+      : `Te enviamos un recordatorio a ${turnoConfirmado.cliente_email}`
 
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4">
@@ -30,9 +47,9 @@ export default function Confirmacion() {
           ✓
         </div>
 
-        <h1 className="text-2xl font-semibold text-white mb-2">¡Turno confirmado!</h1>
+        <h1 className="text-2xl font-semibold text-white mb-2">{title}</h1>
         <p className="text-muted text-sm mb-8">
-          Te enviamos un recordatorio a <span className="text-white">{turnoConfirmado.cliente_email}</span>
+          {description}
         </p>
 
         {/* Resumen compacto */}
