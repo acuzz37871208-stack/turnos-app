@@ -1,0 +1,8 @@
+[functions.mp-webhook]
+verify_jwt = false
+
+[functions.crear-preferencia-mp]
+verify_jwt = true
+
+[functions.notificar-turno]
+verify_jwt = true
