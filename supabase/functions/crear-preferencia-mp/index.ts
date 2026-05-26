@@ -19,16 +19,13 @@ serve(async (req) => {
     const {
       turno_id,
       negocio_id,
-      titulo,
-      precio,
-      email,
       success_url,
       failure_url,
       notification_url,
     } = await req.json()
 
     // Validación básica
-    if (!turno_id || !negocio_id || !titulo || !precio) {
+    if (!turno_id || !negocio_id) {
       return new Response(
         JSON.stringify({ error: 'Faltan parámetros requeridos' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -62,6 +59,36 @@ serve(async (req) => {
       )
     }
 
+    const { data: turno, error: turnoErr } = await supabase
+      .from('turnos')
+      .select('id, negocio_id, cliente_email, estado, servicios(nombre, precio)')
+      .eq('id', turno_id)
+      .single()
+
+    if (turnoErr || !turno || turno.negocio_id !== negocio_id) {
+      return new Response(
+        JSON.stringify({ error: 'Turno no encontrado para este negocio' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (!['pendiente_pago', 'pendiente'].includes(turno.estado)) {
+      return new Response(
+        JSON.stringify({ error: 'Este turno no está pendiente de pago' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const servicio = Array.isArray(turno.servicios) ? turno.servicios[0] : turno.servicios
+    const precio = Number(servicio?.precio)
+
+    if (!servicio?.nombre || !precio || precio <= 0) {
+      return new Response(
+        JSON.stringify({ error: 'El servicio no tiene un precio válido para cobrar' }),
+        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const expirationDate = new Date(Date.now() + 30 * 60 * 1000).toISOString()
     const webhookUrl = notification_url
       ? `${notification_url}?turno_id=${encodeURIComponent(turno_id)}`
@@ -72,14 +99,14 @@ serve(async (req) => {
       items: [
         {
           id: turno_id,
-          title: `${titulo} — ${negocio.nombre}`,
+          title: `${servicio.nombre} — ${negocio.nombre}`,
           quantity: 1,
-          unit_price: Number(precio),
+          unit_price: precio,
           currency_id: 'ARS',
         }
       ],
       payer: {
-        email: email || undefined,
+        email: turno.cliente_email || undefined,
       },
       back_urls: {
         success: `${success_url}?turno_id=${turno_id}&status=approved`,

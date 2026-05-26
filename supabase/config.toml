@@ -2,7 +2,7 @@
 verify_jwt = false
 
 [functions.crear-preferencia-mp]
-verify_jwt = true
+verify_jwt = false
 
 [functions.notificar-turno]
 verify_jwt = true

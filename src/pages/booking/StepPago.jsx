@@ -17,9 +17,6 @@ export default function StepPago({ negocio, slug, onBack }) {
         body: {
           turno_id:    turnoConfirmado.id,
           negocio_id:  negocio.id,
-          titulo:      servicio.nombre,
-          precio:      servicio.precio,
-          email:       turnoConfirmado.cliente_email,
           success_url: `${window.location.origin}/${slug}/confirmacion`,
           failure_url: `${window.location.origin}/${slug}/reservar`,
           notification_url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mp-webhook`,
@@ -27,11 +24,12 @@ export default function StepPago({ negocio, slug, onBack }) {
       })
 
       if (err) throw err
+      if (!data?.init_point) throw new Error(data?.error || 'MercadoPago no devolvió un link de pago')
 
       // Redirigir al checkout de MercadoPago
       window.location.href = data.init_point
-    } catch {
-      setError('No se pudo iniciar el pago. Intentá de nuevo.')
+    } catch (err) {
+      setError(err?.message || 'No se pudo iniciar el pago. Intentá de nuevo.')
     } finally {
       setLoading(false)
     }
