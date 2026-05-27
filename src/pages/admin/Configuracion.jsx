@@ -37,20 +37,67 @@ function Tag({ children, color = 'purple' }) {
 export default function Configuracion() {
   const navigate = useNavigate()
   const [negocio, setNegocio] = useState(null)
+  const [checklist, setChecklist] = useState({ servicios: 0, profesionales: 0, horarios: 0 })
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('general')
+  const [publishSaving, setPublishSaving] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const loadChecklist = useCallback(async (negocioId) => {
+    const [{ data: servicios }, { data: profesionales }] = await Promise.all([
+      supabase.from('servicios').select('id').eq('negocio_id', negocioId).eq('activo', true),
+      supabase.from('profesionales').select('id').eq('negocio_id', negocioId).eq('activo', true),
+    ])
+
+    const profesionalIds = (profesionales || []).map((p) => p.id)
+    const { data: horarios } = profesionalIds.length > 0
+      ? await supabase.from('horarios').select('id').in('profesional_id', profesionalIds)
+      : { data: [] }
+
+    setChecklist({
+      servicios: servicios?.length || 0,
+      profesionales: profesionales?.length || 0,
+      horarios: horarios?.length || 0,
+    })
+  }, [])
 
   useEffect(() => {
     async function init() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { navigate('/admin/login'); return }
       const { data } = await supabase.from('negocios').select('*').eq('owner_id', session.user.id).single()
-      setNegocio(data); setLoading(false)
+      setNegocio(data)
+      if (data) await loadChecklist(data.id)
+      setLoading(false)
     }
     init()
-  }, [navigate])
+  }, [loadChecklist, navigate])
 
   if (loading) return <div className="min-h-screen bg-bg flex items-center justify-center"><Spinner size="lg" /></div>
+
+  const publicUrl = `${window.location.origin}/${negocio?.slug}`
+  const readyToPublish = checklist.servicios > 0 && checklist.horarios > 0
+
+  async function togglePublicacion() {
+    if (!negocio || (!negocio.activo && !readyToPublish)) return
+    setPublishSaving(true)
+    const nextActivo = !negocio.activo
+    const { data } = await supabase
+      .from('negocios')
+      .update({ activo: nextActivo })
+      .eq('id', negocio.id)
+      .select()
+      .single()
+
+    if (data) setNegocio(data)
+    setPublishSaving(false)
+  }
+
+  async function copiarLink() {
+    await navigator.clipboard.writeText(publicUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2500)
+  }
 
   const tabs = [
     { id: 'general', label: 'General' },
@@ -81,10 +128,22 @@ export default function Configuracion() {
         </div>
       </div>
       <div className="max-w-2xl mx-auto px-4 py-8">
-        {activeTab === 'general'   && <TabGeneral   negocio={negocio} setNegocio={setNegocio} />}
-        {activeTab === 'servicios' && <TabServicios  negocio={negocio} />}
-        {activeTab === 'equipo'    && <TabEquipo     negocio={negocio} />}
-        {activeTab === 'horarios'  && <TabHorarios   negocio={negocio} />}
+        <BusinessStatus
+          negocio={negocio}
+          checklist={checklist}
+          publicUrl={publicUrl}
+          copied={copied}
+          publishSaving={publishSaving}
+          readyToPublish={readyToPublish}
+          onCopy={copiarLink}
+          onTogglePublicacion={togglePublicacion}
+          onGoToTab={setActiveTab}
+        />
+
+        {activeTab === 'general'   && <TabGeneral   negocio={negocio} setNegocio={setNegocio} publicUrl={publicUrl} />}
+        {activeTab === 'servicios' && <TabServicios  negocio={negocio} onChange={() => loadChecklist(negocio.id)} />}
+        {activeTab === 'equipo'    && <TabEquipo     negocio={negocio} onChange={() => loadChecklist(negocio.id)} />}
+        {activeTab === 'horarios'  && <TabHorarios   negocio={negocio} onChange={() => loadChecklist(negocio.id)} />}
         {activeTab === 'pagos'      && <TabPagos      negocio={negocio} setNegocio={setNegocio} />}
         {activeTab === 'apariencia' && <TabApariencia negocio={negocio} setNegocio={setNegocio} />}
       </div>
@@ -92,7 +151,67 @@ export default function Configuracion() {
   )
 }
 
-function TabGeneral({ negocio, setNegocio }) {
+function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, readyToPublish, onCopy, onTogglePublicacion, onGoToTab }) {
+  const items = [
+    { label: 'Servicios activos', value: checklist.servicios, ready: checklist.servicios > 0, tab: 'servicios' },
+    { label: needsProfesional(negocio?.tipo) ? 'Equipo activo' : 'Espacios activos', value: checklist.profesionales, ready: checklist.profesionales > 0, tab: needsProfesional(negocio?.tipo) ? 'equipo' : 'horarios' },
+    { label: 'Horarios cargados', value: checklist.horarios, ready: checklist.horarios > 0, tab: 'horarios' },
+    { label: 'MercadoPago', value: negocio?.mp_access_token ? 'Conectado' : 'Opcional', ready: true, tab: 'pagos' },
+  ]
+
+  return (
+    <section className="bg-surface border border-border rounded-xl p-5 mb-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Tag color={negocio?.activo ? 'green' : 'yellow'}>{negocio?.activo ? 'publicada' : 'borrador'}</Tag>
+            {!readyToPublish && <Tag color="red">faltan datos</Tag>}
+          </div>
+          <h2 className="text-white font-semibold">Estado de la agenda</h2>
+          <p className="text-sm text-muted mt-1">
+            {negocio?.activo
+              ? 'Tu agenda está visible para clientes.'
+              : readyToPublish
+                ? 'La agenda está lista para publicarse.'
+                : 'Completá los puntos pendientes antes de publicarla.'}
+          </p>
+          <p className="text-xs font-mono text-accent mt-3 break-all">{publicUrl}</p>
+        </div>
+        <div className="flex gap-2 sm:flex-col sm:min-w-36">
+          <Button type="button" onClick={onCopy} variant="ghost" className="text-sm px-3 py-2 flex-1">
+            {copied ? 'Copiado' : 'Copiar link'}
+          </Button>
+          <Button
+            type="button"
+            onClick={onTogglePublicacion}
+            disabled={publishSaving || (!negocio?.activo && !readyToPublish)}
+            className="text-sm px-3 py-2 flex-1"
+          >
+            {publishSaving ? <Spinner size="sm" /> : negocio?.activo ? 'Pausar' : 'Publicar'}
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-5">
+        {items.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            onClick={() => onGoToTab(item.tab)}
+            className="text-left border border-border rounded-lg px-4 py-3 hover:border-muted transition-colors"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-white">{item.label}</span>
+              <Tag color={item.ready ? 'green' : 'red'}>{item.value}</Tag>
+            </div>
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function TabGeneral({ negocio, setNegocio, publicUrl }) {
   const [form, setForm] = useState({ ...negocio })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -132,7 +251,7 @@ function TabGeneral({ negocio, setNegocio }) {
           )}
           <div>
             <label className="block text-sm text-muted mb-1">URL pública</label>
-            <p className="text-sm font-mono text-accent">turnos.app/{negocio.slug}</p>
+            <p className="text-sm font-mono text-accent break-all">{publicUrl}</p>
           </div>
         </div>
       </Section>
@@ -144,7 +263,7 @@ function TabGeneral({ negocio, setNegocio }) {
   )
 }
 
-function TabServicios({ negocio }) {
+function TabServicios({ negocio, onChange }) {
   const [servicios, setServicios] = useState([])
   const [loading, setLoading] = useState(true)
   const [editando, setEditando] = useState(null)
@@ -158,12 +277,12 @@ function TabServicios({ negocio }) {
   useEffect(() => { fetchServicios() }, [fetchServicios])
 
   async function toggleActivo(s) {
-    await supabase.from('servicios').update({ activo: !s.activo }).eq('id', s.id); fetchServicios()
+    await supabase.from('servicios').update({ activo: !s.activo }).eq('id', s.id); fetchServicios(); onChange?.()
   }
 
   async function eliminar(id) {
     if (!confirm('¿Eliminar este servicio?')) return
-    await supabase.from('servicios').delete().eq('id', id); fetchServicios()
+    await supabase.from('servicios').delete().eq('id', id); fetchServicios(); onChange?.()
   }
 
   if (loading) return <div className="flex justify-center py-8"><Spinner /></div>
@@ -171,13 +290,13 @@ function TabServicios({ negocio }) {
   return (
     <Section title="Servicios" description="Lo que ofrecés a tus clientes"
       action={<Button onClick={() => { setNuevo(true); setEditando(null) }} className="text-sm px-3 py-2">+ Agregar</Button>}>
-      {nuevo && <FormServicio negocioId={negocio.id} onSave={() => { setNuevo(false); fetchServicios() }} onCancel={() => setNuevo(false)} />}
+      {nuevo && <FormServicio negocioId={negocio.id} onSave={() => { setNuevo(false); fetchServicios(); onChange?.() }} onCancel={() => setNuevo(false)} />}
       {servicios.length === 0 && !nuevo ? (
         <p className="text-sm text-muted text-center py-8">No hay servicios. Agregá uno.</p>
       ) : (
         <div className="flex flex-col gap-3 mt-4">
           {servicios.map(s => editando === s.id
-            ? <FormServicio key={s.id} negocioId={negocio.id} servicio={s} onSave={() => { setEditando(null); fetchServicios() }} onCancel={() => setEditando(null)} />
+            ? <FormServicio key={s.id} negocioId={negocio.id} servicio={s} onSave={() => { setEditando(null); fetchServicios(); onChange?.() }} onCancel={() => setEditando(null)} />
             : (
               <div key={s.id} className="bg-surface border border-border rounded-xl px-5 py-4">
                 <div className="flex items-start justify-between">
@@ -239,7 +358,7 @@ function FormServicio({ negocioId, servicio, onSave, onCancel }) {
   )
 }
 
-function TabEquipo({ negocio }) {
+function TabEquipo({ negocio, onChange }) {
   const [profesionales, setProfesionales] = useState([])
   const [loading, setLoading] = useState(true)
   const [nuevo, setNuevo] = useState(false)
@@ -254,12 +373,12 @@ function TabEquipo({ negocio }) {
   useEffect(() => { fetchProfesionales() }, [fetchProfesionales])
 
   async function toggleActivo(p) {
-    await supabase.from('profesionales').update({ activo: !p.activo }).eq('id', p.id); fetchProfesionales()
+    await supabase.from('profesionales').update({ activo: !p.activo }).eq('id', p.id); fetchProfesionales(); onChange?.()
   }
 
   async function eliminar(id) {
     if (!confirm(`¿Eliminar?`)) return
-    await supabase.from('profesionales').delete().eq('id', id); fetchProfesionales()
+    await supabase.from('profesionales').delete().eq('id', id); fetchProfesionales(); onChange?.()
   }
 
   if (loading) return <div className="flex justify-center py-8"><Spinner /></div>
@@ -267,13 +386,13 @@ function TabEquipo({ negocio }) {
   return (
     <Section title={label} description={`Quiénes atienden en tu negocio`}
       action={<Button onClick={() => { setNuevo(true); setEditando(null) }} className="text-sm px-3 py-2">+ Agregar</Button>}>
-      {nuevo && <FormProfesional negocioId={negocio.id} label={label} onSave={() => { setNuevo(false); fetchProfesionales() }} onCancel={() => setNuevo(false)} />}
+      {nuevo && <FormProfesional negocioId={negocio.id} label={label} onSave={() => { setNuevo(false); fetchProfesionales(); onChange?.() }} onCancel={() => setNuevo(false)} />}
       {profesionales.length === 0 && !nuevo ? (
         <p className="text-sm text-muted text-center py-8">No hay {label.toLowerCase()}s. Agregá uno.</p>
       ) : (
         <div className="flex flex-col gap-3 mt-4">
           {profesionales.map(p => editando === p.id
-            ? <FormProfesional key={p.id} negocioId={negocio.id} profesional={p} label={label} onSave={() => { setEditando(null); fetchProfesionales() }} onCancel={() => setEditando(null)} />
+            ? <FormProfesional key={p.id} negocioId={negocio.id} profesional={p} label={label} onSave={() => { setEditando(null); fetchProfesionales(); onChange?.() }} onCancel={() => setEditando(null)} />
             : (
               <div key={p.id} className="bg-surface border border-border rounded-xl px-5 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -325,7 +444,7 @@ function FormProfesional({ negocioId, profesional, label, onSave, onCancel }) {
   )
 }
 
-function TabHorarios({ negocio }) {
+function TabHorarios({ negocio, onChange }) {
   const [profesionales, setProfesionales] = useState([])
   const [horarios, setHorarios] = useState({})
   const [especiales, setEspeciales] = useState([])
@@ -370,17 +489,17 @@ function TabHorarios({ negocio }) {
         } else if (!h && existing) { await supabase.from('horarios').delete().eq('id', existing) }
       }
     }
-    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 3000); fetchData()
+    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 3000); fetchData(); onChange?.()
   }
 
   async function agregarEspecial() {
     if (!nuevaFecha.fecha) return
     await supabase.from('horarios_especiales').insert({ negocio_id: negocio.id, ...nuevaFecha })
-    setNuevaFecha({ fecha: '', tipo: 'cerrado', hora_inicio: '09:00', hora_fin: '18:00', motivo: '' }); fetchData()
+    setNuevaFecha({ fecha: '', tipo: 'cerrado', hora_inicio: '09:00', hora_fin: '18:00', motivo: '' }); fetchData(); onChange?.()
   }
 
   async function eliminarEspecial(id) {
-    await supabase.from('horarios_especiales').delete().eq('id', id); fetchData()
+    await supabase.from('horarios_especiales').delete().eq('id', id); fetchData(); onChange?.()
   }
 
   if (loading) return <div className="flex justify-center py-8"><Spinner /></div>
