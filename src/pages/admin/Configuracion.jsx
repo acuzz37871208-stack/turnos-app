@@ -137,7 +137,6 @@ export default function Configuracion() {
           readyToPublish={readyToPublish}
           onCopy={copiarLink}
           onTogglePublicacion={togglePublicacion}
-          onGoToTab={setActiveTab}
         />
 
         {activeTab === 'general'   && <TabGeneral   negocio={negocio} setNegocio={setNegocio} publicUrl={publicUrl} />}
@@ -151,12 +150,18 @@ export default function Configuracion() {
   )
 }
 
-function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, readyToPublish, onCopy, onTogglePublicacion, onGoToTab }) {
+function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, readyToPublish, onCopy, onTogglePublicacion }) {
+  const equipoLabel = needsProfesional(negocio?.tipo)
+    ? 'Equipo activo'
+    : negocio?.tipo === 'cancha'
+      ? 'Canchas activas'
+      : 'Recursos activos'
+
   const items = [
-    { label: 'Servicios activos', value: checklist.servicios, ready: checklist.servicios > 0, tab: 'servicios' },
-    { label: needsProfesional(negocio?.tipo) ? 'Equipo activo' : 'Espacios activos', value: checklist.profesionales, ready: checklist.profesionales > 0, tab: needsProfesional(negocio?.tipo) ? 'equipo' : 'horarios' },
-    { label: 'Horarios cargados', value: checklist.horarios, ready: checklist.horarios > 0, tab: 'horarios' },
-    { label: 'MercadoPago', value: negocio?.mp_access_token ? 'Conectado' : 'Opcional', ready: true, tab: 'pagos' },
+    { label: 'Servicios activos', value: checklist.servicios, ready: checklist.servicios > 0 },
+    { label: equipoLabel, value: checklist.profesionales, ready: checklist.profesionales > 0 },
+    { label: 'Horarios cargados', value: checklist.horarios, ready: checklist.horarios > 0 },
+    { label: 'MercadoPago', value: negocio?.mp_access_token ? 'Conectado' : 'Opcional', ready: true },
   ]
 
   return (
@@ -194,17 +199,15 @@ function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, 
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-5">
         {items.map((item) => (
-          <button
+          <div
             key={item.label}
-            type="button"
-            onClick={() => onGoToTab(item.tab)}
-            className="text-left border border-border rounded-lg px-4 py-3 hover:border-muted transition-colors"
+            className="border border-border rounded-lg px-4 py-3"
           >
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm text-white">{item.label}</span>
               <Tag color={item.ready ? 'green' : 'red'}>{item.value}</Tag>
             </div>
-          </button>
+          </div>
         ))}
       </div>
     </section>
