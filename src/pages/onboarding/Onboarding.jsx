@@ -21,8 +21,14 @@ export default function Onboarding() {
   const [negocioCreado, setNegocioCreado] = useState(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
+    supabase.auth.getUser().then(async ({ data: { user }, error }) => {
+      if (error || !user) {
+        await supabase.auth.signOut()
+        setSession(null)
+        return
+      }
+
+      setSession({ user })
     })
   }, [])
 
@@ -36,8 +42,8 @@ export default function Onboarding() {
     if (signUpError) { setError(signUpError.message); setLoading(false); return }
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
     if (signInError) { setError(signInError.message); setLoading(false); return }
-    const { data: { session } } = await supabase.auth.getSession()
-    setSession(session)
+    const { data: { user } } = await supabase.auth.getUser()
+    setSession(user ? { user } : null)
     setLoading(false); next()
   }
 
@@ -53,10 +59,18 @@ export default function Onboarding() {
   async function guardarNegocio(e) {
     e.preventDefault()
     setLoading(true); setError(null)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { setError('Sesión expirada. Iniciá sesión de nuevo.'); setLoading(false); navigate('/admin/login'); return }
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      await supabase.auth.signOut()
+      setSession(null)
+      setError('Sesión expirada. Iniciá sesión de nuevo.')
+      setLoading(false)
+      setStep(0)
+      return
+    }
+
     const { data, error } = await supabase.from('negocios')
-      .insert({ ...negocio, owner_id: session.user.id })
+      .insert({ ...negocio, owner_id: user.id })
       .select().single()
     if (error) { setError(error.message); setLoading(false); return }
     setNegocioCreado(data)
