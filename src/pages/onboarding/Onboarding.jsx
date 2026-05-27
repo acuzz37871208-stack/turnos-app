@@ -14,15 +14,15 @@ export default function Onboarding() {
   const [error, setError] = useState(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [session, setSession] = useState(null)
   const [negocio, setNegocio] = useState({ nombre: '', tipo: 'peluqueria', slug: '', telefono: '' })
   const [horarios, setHorarios] = useState({ dias: [1,2,3,4,5], hora_inicio: '09:00', hora_fin: '18:00', intervalo: 30 })
   const [servicios, setServicios] = useState([{ nombre: '', duracion_min: 30, precio: '', requiere_pago: false }])
   const [negocioCreado, setNegocioCreado] = useState(null)
 
-  // Si ya hay sesión activa, saltar paso 0
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setStep(1)
+      setSession(session)
     })
   }, [])
 
@@ -36,7 +36,18 @@ export default function Onboarding() {
     if (signUpError) { setError(signUpError.message); setLoading(false); return }
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
     if (signInError) { setError(signInError.message); setLoading(false); return }
+    const { data: { session } } = await supabase.auth.getSession()
+    setSession(session)
     setLoading(false); next()
+  }
+
+  async function usarOtraCuenta() {
+    setLoading(true); setError(null)
+    await supabase.auth.signOut()
+    setSession(null)
+    setEmail('')
+    setPassword('')
+    setLoading(false)
   }
 
   async function guardarNegocio(e) {
@@ -102,19 +113,36 @@ export default function Onboarding() {
 
       <div key={step} className="page-enter">
         {step === 0 && (
-          <form onSubmit={crearCuenta} className="flex flex-col gap-4">
-            <h2 className="text-lg font-medium text-white mb-1">Creá tu cuenta</h2>
-            <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" required />
-            <Input label="Contraseña" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="mínimo 8 caracteres" minLength={8} required />
-            {error && <p className="text-sm text-accent2">{error}</p>}
-            <Button type="submit" disabled={loading} className="w-full mt-2">
-              {loading ? <Spinner size="sm" /> : 'Continuar'}
-            </Button>
-            <p className="text-center text-sm text-muted">
-              ¿Ya tenés cuenta?{' '}
-              <button type="button" onClick={() => navigate('/admin/login')} className="text-accent hover:underline">Ingresá</button>
-            </p>
-          </form>
+          session ? (
+            <div className="flex flex-col gap-4">
+              <h2 className="text-lg font-medium text-white mb-1">Cuenta activa</h2>
+              <div className="bg-surface border border-border rounded-xl px-5 py-4">
+                <p className="text-sm text-muted mb-1">Vas a registrar el negocio con</p>
+                <p className="text-white text-sm break-all">{session.user.email}</p>
+              </div>
+              {error && <p className="text-sm text-accent2">{error}</p>}
+              <Button type="button" onClick={next} disabled={loading} className="w-full mt-2">
+                Continuar con esta cuenta
+              </Button>
+              <Button type="button" variant="ghost" onClick={usarOtraCuenta} disabled={loading} className="w-full">
+                {loading ? <Spinner size="sm" /> : 'Usar otra cuenta'}
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={crearCuenta} className="flex flex-col gap-4">
+              <h2 className="text-lg font-medium text-white mb-1">Creá tu cuenta</h2>
+              <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" required />
+              <Input label="Contraseña" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="mínimo 8 caracteres" minLength={8} required />
+              {error && <p className="text-sm text-accent2">{error}</p>}
+              <Button type="submit" disabled={loading} className="w-full mt-2">
+                {loading ? <Spinner size="sm" /> : 'Continuar'}
+              </Button>
+              <p className="text-center text-sm text-muted">
+                ¿Ya tenés cuenta?{' '}
+                <button type="button" onClick={() => navigate('/admin/login')} className="text-accent hover:underline">Ingresá</button>
+              </p>
+            </form>
+          )
         )}
 
         {step === 1 && (
