@@ -45,16 +45,25 @@ export function Card({ children, className = '', onClick, selected }) {
 
 // ── Badge ──────────────────────────────────────────────
 const badgeColors = {
-  pendiente:  'bg-yellow-500 bg-opacity-15 text-yellow-400',
-  confirmado: 'bg-accent bg-opacity-15 text-accent',
-  atendido:   'bg-accent3 bg-opacity-15 text-accent3',
-  cancelado:  'bg-accent2 bg-opacity-15 text-accent2',
+  pendiente:      'bg-yellow-500 bg-opacity-15 text-yellow-400',
+  pendiente_pago: 'bg-blue-500 bg-opacity-15 text-blue-300',
+  confirmado:     'bg-accent bg-opacity-15 text-accent',
+  atendido:       'bg-accent3 bg-opacity-15 text-accent3',
+  cancelado:      'bg-accent2 bg-opacity-15 text-accent2',
+}
+
+const badgeLabels = {
+  pendiente:      'pendiente',
+  pendiente_pago: 'pago pendiente',
+  confirmado:     'confirmado',
+  atendido:       'atendido',
+  cancelado:      'cancelado',
 }
 
 export function Badge({ estado }) {
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold uppercase tracking-wide ${badgeColors[estado] || 'bg-border text-muted'}`}>
-      {estado}
+      {badgeLabels[estado] || estado}
     </span>
   )
 }

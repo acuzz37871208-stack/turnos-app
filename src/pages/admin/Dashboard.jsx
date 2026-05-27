@@ -70,11 +70,20 @@ export default function AdminDashboard() {
     : turnos.filter(t => t.estado === filtroEstado)
 
   const metrics = {
-    total:     turnos.length,
-    pendiente: turnos.filter(t => t.estado === 'pendiente').length,
-    atendido:  turnos.filter(t => t.estado === 'atendido').length,
-    cancelado: turnos.filter(t => t.estado === 'cancelado').length,
+    total:         turnos.length,
+    pendientePago: turnos.filter(t => t.estado === 'pendiente_pago').length,
+    confirmado:    turnos.filter(t => t.estado === 'confirmado').length,
+    atendido:      turnos.filter(t => t.estado === 'atendido').length,
+    cancelado:     turnos.filter(t => t.estado === 'cancelado').length,
   }
+
+  const filtrosEstado = [
+    { value: 'todos', label: 'Todos' },
+    { value: 'pendiente_pago', label: 'Pago pendiente' },
+    { value: 'confirmado', label: 'Confirmado' },
+    { value: 'atendido', label: 'Atendido' },
+    { value: 'cancelado', label: 'Cancelado' },
+  ]
 
   return (
     <div className="min-h-screen bg-bg">
@@ -96,10 +105,11 @@ export default function AdminDashboard() {
 
       <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Métricas */}
-        <div className="grid grid-cols-4 gap-3 mb-6">
-          <MetricCard label="Total"     value={metrics.total}     color="text-white" />
-          <MetricCard label="Pendientes" value={metrics.pendiente} color="text-yellow-400" />
-          <MetricCard label="Atendidos"  value={metrics.atendido}  color="text-accent3" />
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+          <MetricCard label="Total" value={metrics.total} color="text-white" />
+          <MetricCard label="Pago pendiente" value={metrics.pendientePago} color="text-blue-300" />
+          <MetricCard label="Confirmados" value={metrics.confirmado} color="text-accent" />
+          <MetricCard label="Atendidos" value={metrics.atendido} color="text-accent3" />
           <MetricCard label="Cancelados" value={metrics.cancelado} color="text-accent2" />
         </div>
 
@@ -115,11 +125,11 @@ export default function AdminDashboard() {
             className="text-sm text-muted hover:text-white border border-border rounded-lg px-4 py-2.5 transition-colors">
             Hoy
           </button>
-          {['todos','pendiente','atendido','cancelado'].map(e => (
-            <button key={e}
-              onClick={() => setFiltroEstado(e)}
-              className={`text-sm border rounded-lg px-4 py-2.5 transition-colors ${filtroEstado === e ? 'border-accent text-white' : 'border-border text-muted hover:text-white'}`}>
-              {e.charAt(0).toUpperCase() + e.slice(1)}
+          {filtrosEstado.map(filtro => (
+            <button key={filtro.value}
+              onClick={() => setFiltroEstado(filtro.value)}
+              className={`text-sm border rounded-lg px-4 py-2.5 transition-colors ${filtroEstado === filtro.value ? 'border-accent text-white' : 'border-border text-muted hover:text-white'}`}>
+              {filtro.label}
             </button>
           ))}
         </div>
@@ -138,7 +148,7 @@ export default function AdminDashboard() {
     <div
       key={t.id}
       className={`bg-surface border border-border rounded-xl p-5 ${
-        t.estado === 'pendiente' ? 'ring-2 ring-yellow-400/40' : ''
+        t.estado === 'pendiente_pago' ? 'ring-2 ring-blue-400/40' : ''
       }`}
     >
       <div className="flex items-start justify-between mb-3">
@@ -148,12 +158,17 @@ export default function AdminDashboard() {
           {t.profesionales && <p className="text-xs text-muted">con {t.profesionales.nombre}</p>}
           {t.nota && <p className="text-xs text-muted italic mt-1">"{t.nota}"</p>}
           <p className="text-xs text-muted mt-1">{t.cliente_telefono} · {t.cliente_email}</p>
+          {t.estado === 'pendiente_pago' && (
+            <p className="text-xs text-blue-300 mt-2">
+              Esperando confirmación de MercadoPago
+            </p>
+          )}
         </div>
         <Badge estado={t.estado} />
       </div>
 
       <div className="flex gap-2 mt-3 pt-3 border-t border-border">
-        {t.estado === 'pendiente' && (
+        {['pendiente', 'confirmado'].includes(t.estado) && (
           <button
             onClick={() => cambiarEstado(t.id, 'atendido')}
             className="text-xs text-accent3 border border-accent3 border-opacity-30 bg-accent3 bg-opacity-10 px-3 py-1.5 rounded-lg hover:bg-opacity-20 transition"
@@ -162,7 +177,7 @@ export default function AdminDashboard() {
           </button>
         )}
 
-        {['pendiente','confirmado'].includes(t.estado) && (
+        {['pendiente', 'pendiente_pago', 'confirmado'].includes(t.estado) && (
           <button
             onClick={() => cambiarEstado(t.id, 'cancelado')}
             className="text-xs text-accent2 border border-accent2 border-opacity-30 bg-accent2 bg-opacity-10 px-3 py-1.5 rounded-lg hover:bg-opacity-20 transition"
