@@ -7,6 +7,19 @@ const STEPS = ['Cuenta', 'Negocio', 'Horarios', 'Servicios', '¡Listo!']
 const TIPOS = ['clinica', 'peluqueria', 'cancha', 'otro']
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
+function errorMessage(error) {
+  if (!error) return 'No pudimos guardar los datos. Intentá de nuevo.'
+  if (error.code === '23505') return 'Esa URL ya está en uso. Probá con otro nombre.'
+  if (error.message?.includes('violates foreign key constraint')) return 'La sesión no está sincronizada. Cerrá sesión y volvé a ingresar.'
+  if (error.message?.includes('duplicate key')) return 'Ya existe un registro con esos datos.'
+  return error.message || 'No pudimos guardar los datos. Intentá de nuevo.'
+}
+
+function horaAMinutos(hora) {
+  const [horas, minutos] = hora.split(':').map(Number)
+  return horas * 60 + minutos
+}
+
 export default function Onboarding() {
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
@@ -59,6 +72,13 @@ export default function Onboarding() {
   async function guardarNegocio(e) {
     e.preventDefault()
     setLoading(true); setError(null)
+
+    if (!negocio.slug || negocio.slug.length < 3) {
+      setError('La URL de tu agenda tiene que tener al menos 3 caracteres.')
+      setLoading(false)
+      return
+    }
+
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError || !user) {
       await supabase.auth.signOut()
@@ -70,9 +90,9 @@ export default function Onboarding() {
     }
 
     const { data, error } = await supabase.from('negocios')
-      .insert({ ...negocio, owner_id: user.id })
+      .insert({ ...negocio, owner_id: user.id, activo: false })
       .select().single()
-    if (error) { setError(error.message); setLoading(false); return }
+    if (error) { setError(errorMessage(error)); setLoading(false); return }
     setNegocioCreado(data)
     setLoading(false); next()
   }
@@ -80,15 +100,46 @@ export default function Onboarding() {
   async function guardarHorarios(e) {
     e.preventDefault()
     setLoading(true); setError(null)
-    const { data: prof } = await supabase.from('profesionales')
-      .insert({ negocio_id: negocioCreado.id, nombre: 'Equipo', activo: true })
-      .select().single()
-    const horariosRows = horarios.dias.map(dia => ({
-      profesional_id: prof.id, dia_semana: dia,
-      hora_inicio: horarios.hora_inicio, hora_fin: horarios.hora_fin,
-    }))
-    await supabase.from('horarios').insert(horariosRows)
-    setLoading(false); next()
+
+    if (!negocioCreado?.id) {
+      setError('Primero tenés que guardar los datos del negocio.')
+      setLoading(false)
+      setStep(1)
+      return
+    }
+
+    if (horarios.dias.length === 0) {
+      setError('Elegí al menos un día de atención.')
+      setLoading(false)
+      return
+    }
+
+    if (horaAMinutos(horarios.hora_inicio) >= horaAMinutos(horarios.hora_fin)) {
+      setError('El horario de cierre tiene que ser posterior al de apertura.')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const { data: prof, error: profError } = await supabase.from('profesionales')
+        .insert({ negocio_id: negocioCreado.id, nombre: 'Equipo', activo: true })
+        .select().single()
+
+      if (profError) throw profError
+
+      const horariosRows = horarios.dias.map(dia => ({
+        profesional_id: prof.id, dia_semana: dia,
+        hora_inicio: horarios.hora_inicio, hora_fin: horarios.hora_fin,
+      }))
+      const { error: horariosError } = await supabase.from('horarios').insert(horariosRows)
+
+      if (horariosError) throw horariosError
+
+      setLoading(false); next()
+    } catch (error) {
+      setError(errorMessage(error))
+      setLoading(false)
+    }
   }
 
   async function guardarServicios(e) {
@@ -100,8 +151,32 @@ export default function Onboarding() {
       precio: s.precio ? Number(s.precio) : null,
       requiere_pago: s.requiere_pago, activo: true,
     }))
-    if (rows.length > 0) await supabase.from('servicios').insert(rows)
-    setLoading(false); next()
+
+    if (rows.length === 0) {
+      setError('Agregá al menos un servicio para publicar la agenda.')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const { error: serviciosError } = await supabase.from('servicios').insert(rows)
+      if (serviciosError) throw serviciosError
+
+      const { data, error: negocioError } = await supabase
+        .from('negocios')
+        .update({ activo: true })
+        .eq('id', negocioCreado.id)
+        .select()
+        .single()
+
+      if (negocioError) throw negocioError
+
+      setNegocioCreado(data)
+      setLoading(false); next()
+    } catch (error) {
+      setError(errorMessage(error))
+      setLoading(false)
+    }
   }
 
   function toggleDia(dia) {
