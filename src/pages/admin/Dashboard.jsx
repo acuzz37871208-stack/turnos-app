@@ -115,27 +115,29 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-bg">
-      <header className="border-b border-border px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="font-semibold text-white">{negocio?.nombre || 'Dashboard'}</h1>
-          <p className="text-xs text-muted font-mono">{negocio?.activo ? 'Agenda publicada' : 'Agenda en borrador'}</p>
-        </div>
-        <div className="flex gap-2">
-          {negocio && (
-            <Button variant="ghost" onClick={() => window.open(publicUrl, '_blank', 'noopener,noreferrer')} className="text-sm px-3 py-2">
-              Ver agenda
+      <header className="border-b border-border px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="font-semibold text-white">{negocio?.nombre || 'Dashboard'}</h1>
+            <p className="text-xs text-muted font-mono">{negocio?.activo ? 'Agenda publicada' : 'Agenda en borrador'}</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:flex">
+            {negocio && (
+              <Button variant="ghost" onClick={() => window.open(publicUrl, '_blank', 'noopener,noreferrer')} className="text-sm px-3 py-2">
+                Ver agenda
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => navigate('/admin/configuracion')} className="text-sm px-3 py-2">
+              Config
             </Button>
-          )}
-          <Button variant="ghost" onClick={() => navigate('/admin/configuracion')} className="text-sm px-3 py-2">
-            Config
-          </Button>
-          <Button variant="ghost" onClick={() => supabase.auth.signOut().then(() => navigate('/admin/login'))} className="text-sm px-3 py-2">
-            Salir
-          </Button>
+            <Button variant="ghost" onClick={() => supabase.auth.signOut().then(() => navigate('/admin/login'))} className="text-sm px-3 py-2">
+              Salir
+            </Button>
+          </div>
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8">
         <section className="mb-6">
           <p className="text-xs font-mono text-muted uppercase tracking-widest mb-2">Agenda</p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -154,7 +156,7 @@ export default function AdminDashboard() {
         </section>
 
         {/* Métricas */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+        <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-5">
           <MetricCard label="Total" value={metrics.total} color="text-white" hint="del día" />
           <MetricCard label="Por cobrar" value={metrics.pendientePago} color="text-blue-300" hint="MP" />
           <MetricCard label="Confirmados" value={metrics.confirmado} color="text-accent" hint="activos" />
@@ -171,12 +173,12 @@ export default function AdminDashboard() {
         )}
 
         {/* Filtros */}
-        <div className="flex gap-3 mb-6 flex-wrap">
+        <div className="grid grid-cols-2 gap-3 mb-6 sm:flex sm:flex-wrap">
           <input
             type="date"
             value={filtroFecha}
             onChange={handleFecha}
-            className="bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-white outline-none focus:border-accent"
+            className="col-span-2 bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-white outline-none focus:border-accent sm:col-span-1"
           />
           <button onClick={() => irAFecha(fechaLocalISO())}
             className="text-sm text-muted hover:text-white border border-border rounded-lg px-4 py-2.5 transition-colors">
@@ -228,13 +230,13 @@ export default function AdminDashboard() {
                     t.estado === 'pendiente_pago' ? 'ring-2 ring-blue-400/40' : ''
                   }`}
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="w-16 flex-shrink-0 text-center border border-border rounded-lg px-2 py-2">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                    <div className="w-full flex-shrink-0 text-left border border-border rounded-lg px-3 py-2 sm:w-16 sm:text-center">
                       <p className="text-lg font-mono font-bold text-white">{hora}</p>
                       <p className="text-xs text-muted">hs</p>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <p className="font-medium text-white">{t.cliente_nombre}</p>
                           <p className="text-sm text-muted mt-0.5">{t.servicios?.nombre || 'Servicio'}</p>
@@ -253,11 +255,11 @@ export default function AdminDashboard() {
                         )}
                       </div>
 
-                      <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-border">
+                      <div className="grid grid-cols-1 gap-2 mt-4 pt-3 border-t border-border sm:flex sm:flex-wrap">
                         {t.estado === 'pendiente' && (
                           <button
                             onClick={() => cambiarEstado(t.id, 'confirmado')}
-                            className="text-xs text-accent border border-accent border-opacity-30 bg-accent bg-opacity-10 px-3 py-1.5 rounded-lg hover:bg-opacity-20 transition"
+                            className="text-xs text-accent border border-accent border-opacity-30 bg-accent bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition"
                           >
                             Confirmar
                           </button>
@@ -266,7 +268,7 @@ export default function AdminDashboard() {
                         {['pendiente', 'confirmado'].includes(t.estado) && (
                           <button
                             onClick={() => cambiarEstado(t.id, 'atendido')}
-                            className="text-xs text-accent3 border border-accent3 border-opacity-30 bg-accent3 bg-opacity-10 px-3 py-1.5 rounded-lg hover:bg-opacity-20 transition"
+                            className="text-xs text-accent3 border border-accent3 border-opacity-30 bg-accent3 bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition"
                           >
                             Marcar atendido
                           </button>
@@ -275,7 +277,7 @@ export default function AdminDashboard() {
                         {['pendiente', 'pendiente_pago', 'confirmado'].includes(t.estado) && (
                           <button
                             onClick={() => cambiarEstado(t.id, 'cancelado')}
-                            className="text-xs text-accent2 border border-accent2 border-opacity-30 bg-accent2 bg-opacity-10 px-3 py-1.5 rounded-lg hover:bg-opacity-20 transition"
+                            className="text-xs text-accent2 border border-accent2 border-opacity-30 bg-accent2 bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition"
                           >
                             Cancelar
                           </button>

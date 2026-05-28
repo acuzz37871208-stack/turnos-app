@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { applyBusinessTheme } from '../../lib/theme'
-import { Input, Button, Spinner, LoadingScreen } from '../../components/ui'
+import { Input, Button, Spinner, LoadingScreen, LoadingBlock, EmptyState } from '../../components/ui'
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 const TIPOS_NEGOCIO = ['clinica', 'peluqueria', 'cancha', 'otro']
@@ -13,12 +13,12 @@ function needsProfesional(tipo) { return !SIN_PROFESIONAL.includes(tipo) }
 function Section({ title, description, children, action }) {
   return (
     <div className="border-b border-border pb-10 mb-10 last:border-0 last:mb-0">
-      <div className="flex items-start justify-between mb-5">
-        <div>
+      <div className="flex flex-col gap-3 mb-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold text-white">{title}</h2>
           {description && <p className="text-xs text-muted mt-0.5 max-w-sm">{description}</p>}
         </div>
-        {action}
+        {action && <div className="w-full sm:w-auto">{action}</div>}
       </div>
       {children}
     </div>
@@ -124,24 +124,26 @@ export default function Configuracion() {
 
   return (
     <div className="min-h-screen bg-bg">
-      <header className="border-b border-border px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="font-semibold text-white">Configuración</h1>
-          <p className="text-xs text-muted font-mono">{negocio?.nombre}</p>
+      <header className="border-b border-border px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
+          <div>
+            <h1 className="font-semibold text-white">Configuración</h1>
+            <p className="text-xs text-muted font-mono">{negocio?.nombre}</p>
+          </div>
+          <button onClick={() => navigate('/admin')} className="shrink-0 text-sm text-muted hover:text-white transition-colors">← Panel</button>
         </div>
-        <button onClick={() => navigate('/admin')} className="text-sm text-muted hover:text-white transition-colors">← Panel</button>
       </header>
-      <div className="border-b border-border px-6">
-        <div className="flex gap-0 overflow-x-auto">
+      <div className="sticky top-0 z-10 border-b border-border bg-bg/95 px-4 backdrop-blur sm:px-6">
+        <div className="mx-auto flex max-w-4xl gap-0 overflow-x-auto">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
-              className={`px-4 py-3 text-sm whitespace-nowrap border-b-2 transition-all ${activeTab === t.id ? 'border-accent text-white' : 'border-transparent text-muted hover:text-white'}`}>
+              className={`min-h-11 px-4 py-3 text-sm whitespace-nowrap border-b-2 transition-all ${activeTab === t.id ? 'border-accent text-white' : 'border-transparent text-muted hover:text-white'}`}>
               {t.label}
             </button>
           ))}
         </div>
       </div>
-      <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8">
         <BusinessStatus
           negocio={negocio}
           checklist={checklist}
@@ -196,7 +198,7 @@ function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, 
           </p>
           <p className="text-xs font-mono text-accent mt-3 break-all">{publicUrl}</p>
         </div>
-        <div className="flex gap-2 sm:flex-col sm:min-w-36">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col sm:min-w-36">
           <Button type="button" onClick={onCopy} variant="ghost" className="text-sm px-3 py-2 flex-1">
             {copied ? 'Copiado' : 'Copiar link'}
           </Button>
@@ -302,30 +304,30 @@ function TabServicios({ negocio, onChange }) {
     await supabase.from('servicios').delete().eq('id', id); fetchServicios(); onChange?.()
   }
 
-  if (loading) return <div className="flex justify-center py-8"><Spinner /></div>
+  if (loading) return <LoadingBlock title="Cargando servicios" description="Buscando la oferta publicada." />
 
   return (
     <Section title="Servicios" description="Lo que ofrecés a tus clientes"
-      action={<Button onClick={() => { setNuevo(true); setEditando(null) }} className="text-sm px-3 py-2">+ Agregar</Button>}>
+      action={<Button onClick={() => { setNuevo(true); setEditando(null) }} className="w-full text-sm px-3 py-2 sm:w-auto">+ Agregar</Button>}>
       {nuevo && <FormServicio negocioId={negocio.id} onSave={() => { setNuevo(false); fetchServicios(); onChange?.() }} onCancel={() => setNuevo(false)} />}
       {servicios.length === 0 && !nuevo ? (
-        <p className="text-sm text-muted text-center py-8">No hay servicios. Agregá uno.</p>
+        <EmptyState title="Todavía no hay servicios" description="Agregá el primer servicio para que tus clientes puedan reservar." action={<Button onClick={() => setNuevo(true)} className="text-sm px-3 py-2">Agregar servicio</Button>} />
       ) : (
         <div className="flex flex-col gap-3 mt-4">
           {servicios.map(s => editando === s.id
             ? <FormServicio key={s.id} negocioId={negocio.id} servicio={s} onSave={() => { setEditando(null); fetchServicios(); onChange?.() }} onCancel={() => setEditando(null)} />
             : (
               <div key={s.id} className="bg-surface border border-border rounded-xl px-5 py-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium text-white text-sm">{s.nombre}</p>
                       {!s.activo && <Tag color="red">inactivo</Tag>}
                       {s.requiere_pago && <Tag color="yellow">pago requerido</Tag>}
                     </div>
                     <p className="text-xs text-muted mt-0.5">{s.duracion_min} min{s.precio ? ` · $${s.precio.toLocaleString('es-AR')}` : ''}</p>
                   </div>
-                  <div className="flex items-center gap-2 ml-4">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:ml-4 sm:justify-end">
                     <button onClick={() => setEditando(s.id)} className="text-xs text-muted hover:text-white">Editar</button>
                     <button onClick={() => toggleActivo(s)} className={`text-xs ${s.activo ? 'text-muted hover:text-accent2' : 'text-accent3'}`}>{s.activo ? 'Desactivar' : 'Activar'}</button>
                     <button onClick={() => eliminar(s.id)} className="text-xs text-accent2 hover:underline">Eliminar</button>
@@ -357,7 +359,7 @@ function FormServicio({ negocioId, servicio, onSave, onCancel }) {
       <p className="text-xs font-mono text-accent">{servicio ? 'Editando servicio' : 'Nuevo servicio'}</p>
       <Input placeholder="Nombre del servicio" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} required />
       <Input placeholder="Descripción breve (opcional)" value={form.descripcion || ''} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Input label="Duración (min)" type="number" min={5} value={form.duracion_min} onChange={e => setForm(f => ({ ...f, duracion_min: e.target.value }))} />
         <Input label="Precio (opcional)" type="number" value={form.precio || ''} placeholder="0" onChange={e => setForm(f => ({ ...f, precio: e.target.value }))} />
       </div>
@@ -367,7 +369,7 @@ function FormServicio({ negocioId, servicio, onSave, onCancel }) {
           Requiere pago para confirmar
         </label>
       )}
-      <div className="flex gap-2 mt-1">
+      <div className="grid grid-cols-2 gap-2 mt-1">
         <Button type="button" variant="ghost" onClick={onCancel} className="text-sm px-3 py-2">Cancelar</Button>
         <Button type="submit" disabled={saving || !form.nombre} className="flex-1 text-sm">{saving ? <Spinner size="sm" /> : 'Guardar'}</Button>
       </div>
@@ -398,31 +400,31 @@ function TabEquipo({ negocio, onChange }) {
     await supabase.from('profesionales').delete().eq('id', id); fetchProfesionales(); onChange?.()
   }
 
-  if (loading) return <div className="flex justify-center py-8"><Spinner /></div>
+  if (loading) return <LoadingBlock title={`Cargando ${label.toLowerCase()}`} description="Buscando los recursos activos." />
 
   return (
     <Section title={label} description={`Quiénes atienden en tu negocio`}
-      action={<Button onClick={() => { setNuevo(true); setEditando(null) }} className="text-sm px-3 py-2">+ Agregar</Button>}>
+      action={<Button onClick={() => { setNuevo(true); setEditando(null) }} className="w-full text-sm px-3 py-2 sm:w-auto">+ Agregar</Button>}>
       {nuevo && <FormProfesional negocioId={negocio.id} label={label} onSave={() => { setNuevo(false); fetchProfesionales(); onChange?.() }} onCancel={() => setNuevo(false)} />}
       {profesionales.length === 0 && !nuevo ? (
-        <p className="text-sm text-muted text-center py-8">No hay {label.toLowerCase()}s. Agregá uno.</p>
+        <EmptyState title={`No hay ${label.toLowerCase()}s`} description="Agregá al menos uno para poder cargar horarios y recibir reservas." action={<Button onClick={() => setNuevo(true)} className="text-sm px-3 py-2">Agregar</Button>} />
       ) : (
         <div className="flex flex-col gap-3 mt-4">
           {profesionales.map(p => editando === p.id
             ? <FormProfesional key={p.id} negocioId={negocio.id} profesional={p} label={label} onSave={() => { setEditando(null); fetchProfesionales(); onChange?.() }} onCancel={() => setEditando(null)} />
             : (
-              <div key={p.id} className="bg-surface border border-border rounded-xl px-5 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
+              <div key={p.id} className="bg-surface border border-border rounded-xl px-5 py-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
                   <div className="w-9 h-9 bg-border rounded-full flex items-center justify-center text-sm font-mono text-muted">{p.nombre[0].toUpperCase()}</div>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-medium text-white">{p.nombre}</p>
                       {!p.activo && <Tag color="red">inactivo</Tag>}
                     </div>
                     {p.especialidad && <p className="text-xs text-muted">{p.especialidad}</p>}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:justify-end">
                   <button onClick={() => setEditando(p.id)} className="text-xs text-muted hover:text-white">Editar</button>
                   <button onClick={() => toggleActivo(p)} className={`text-xs ${p.activo ? 'text-muted hover:text-accent2' : 'text-accent3'}`}>{p.activo ? 'Desactivar' : 'Activar'}</button>
                   <button onClick={() => eliminar(p.id)} className="text-xs text-accent2 hover:underline">Eliminar</button>
@@ -453,7 +455,7 @@ function FormProfesional({ negocioId, profesional, label, onSave, onCancel }) {
       <p className="text-xs font-mono text-accent">{profesional ? `Editando ${label}` : `Nuevo ${label}`}</p>
       <Input placeholder={`Nombre`} value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} required />
       <Input placeholder="Especialidad (opcional)" value={form.especialidad || ''} onChange={e => setForm(f => ({ ...f, especialidad: e.target.value }))} />
-      <div className="flex gap-2 mt-1">
+      <div className="grid grid-cols-2 gap-2 mt-1">
         <Button type="button" variant="ghost" onClick={onCancel} className="text-sm px-3 py-2">Cancelar</Button>
         <Button type="submit" disabled={saving || !form.nombre} className="flex-1 text-sm">{saving ? <Spinner size="sm" /> : 'Guardar'}</Button>
       </div>
@@ -519,13 +521,13 @@ function TabHorarios({ negocio, onChange }) {
     await supabase.from('horarios_especiales').delete().eq('id', id); fetchData(); onChange?.()
   }
 
-  if (loading) return <div className="flex justify-center py-8"><Spinner /></div>
+  if (loading) return <LoadingBlock title="Cargando horarios" description="Preparando la grilla semanal." />
 
   return (
     <div>
       <Section title="Horarios regulares" description="Días y horarios de atención por miembro del equipo">
         {profesionales.length === 0 ? (
-          <p className="text-sm text-muted text-center py-6">Primero agregá miembros en la pestaña Equipo.</p>
+          <EmptyState title="Falta cargar el equipo" description="Primero agregá los recursos que van a recibir reservas." />
         ) : profesionales.map(prof => (
           <div key={prof.id} className="mb-6">
             <div className="flex items-center gap-2 mb-3">
@@ -537,17 +539,17 @@ function TabHorarios({ negocio, onChange }) {
                 const h = horarios[prof.id]?.[i]
                 const activo = !!h
                 return (
-                  <div key={i} className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${activo ? 'border-border bg-surface' : 'border-border bg-surface opacity-50'}`}>
+                  <div key={i} className={`flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl border transition-all ${activo ? 'border-border bg-surface' : 'border-border bg-surface opacity-50'}`}>
                     <button type="button" onClick={() => toggleDia(prof.id, i)}
-                      className={`w-4 h-4 rounded border-2 flex-shrink-0 transition-all ${activo ? 'bg-accent border-accent' : 'border-muted'}`} />
+                      className={`h-5 w-5 rounded border-2 flex-shrink-0 transition-all ${activo ? 'bg-accent border-accent' : 'border-muted'}`} />
                     <span className="text-sm text-white w-20 flex-shrink-0">{dia}</span>
                     {activo ? (
-                      <div className="flex items-center gap-2 ml-auto">
+                      <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 sm:ml-auto sm:w-auto">
                         <input type="time" value={h.hora_inicio} onChange={e => updateHorario(prof.id, i, 'hora_inicio', e.target.value)}
-                          className="bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-accent" />
+                          className="min-h-10 bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-accent" />
                         <span className="text-muted text-xs">a</span>
                         <input type="time" value={h.hora_fin} onChange={e => updateHorario(prof.id, i, 'hora_fin', e.target.value)}
-                          className="bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-accent" />
+                          className="min-h-10 bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-accent" />
                       </div>
                     ) : <span className="text-xs text-muted ml-auto">Cerrado</span>}
                   </div>
@@ -557,7 +559,7 @@ function TabHorarios({ negocio, onChange }) {
           </div>
         ))}
         {profesionales.length > 0 && (
-          <div className="flex items-center gap-4 mt-4">
+          <div className="flex flex-col gap-3 mt-4 sm:flex-row sm:items-center">
             <Button onClick={guardarHorarios} disabled={saving} className="flex-1">{saving ? <Spinner size="sm" /> : 'Guardar horarios'}</Button>
             {saved && <span className="text-sm text-accent3 font-mono">✓ Guardado</span>}
           </div>
@@ -566,11 +568,11 @@ function TabHorarios({ negocio, onChange }) {
 
       <Section title="Días especiales y feriados" description="Marcá días con horario diferente o días de cierre">
         <div className="flex flex-col gap-3 mb-4">
-          {especiales.length === 0 ? <p className="text-sm text-muted">No hay excepciones configuradas.</p>
+          {especiales.length === 0 ? <p className="rounded-xl border border-dashed border-border px-4 py-4 text-sm text-muted">No hay excepciones configuradas.</p>
           : especiales.map(e => (
-            <div key={e.id} className="bg-surface border border-border rounded-xl px-4 py-3 flex items-center justify-between">
+            <div key={e.id} className="bg-surface border border-border rounded-xl px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm text-white font-medium">
                     {new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
                   </p>
@@ -579,13 +581,13 @@ function TabHorarios({ negocio, onChange }) {
                 {e.motivo && <p className="text-xs text-muted mt-0.5">{e.motivo}</p>}
                 {e.tipo === 'horario_especial' && <p className="text-xs text-muted">{e.hora_inicio} — {e.hora_fin}</p>}
               </div>
-              <button onClick={() => eliminarEspecial(e.id)} className="text-xs text-accent2 hover:underline ml-4">Quitar</button>
+              <button onClick={() => eliminarEspecial(e.id)} className="self-start text-xs text-accent2 hover:underline sm:self-center sm:ml-4">Quitar</button>
             </div>
           ))}
         </div>
         <div className="bg-surface border border-border rounded-xl p-4 flex flex-col gap-3">
           <p className="text-xs font-mono text-muted">Agregar excepción</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="Fecha" type="date" value={nuevaFecha.fecha} onChange={e => setNuevaFecha(f => ({ ...f, fecha: e.target.value }))} />
             <div>
               <label className="block text-sm text-muted mb-1.5">Tipo</label>
@@ -600,7 +602,7 @@ function TabHorarios({ negocio, onChange }) {
             </div>
           </div>
           {nuevaFecha.tipo === 'horario_especial' && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input label="Apertura" type="time" value={nuevaFecha.hora_inicio} onChange={e => setNuevaFecha(f => ({ ...f, hora_inicio: e.target.value }))} />
               <Input label="Cierre" type="time" value={nuevaFecha.hora_fin} onChange={e => setNuevaFecha(f => ({ ...f, hora_fin: e.target.value }))} />
             </div>
