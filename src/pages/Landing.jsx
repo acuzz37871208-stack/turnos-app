@@ -15,6 +15,7 @@ export default function Landing() {
   const navigate = useNavigate()
   const { negocio, servicios, loading, error } = useNegocio(slug)
   const setNegocio = useBookingStore(s => s.setNegocio)
+  const setServicio = useBookingStore(s => s.setServicio)
   const resetBooking = useBookingStore(s => s.resetBooking)
 
   if (loading) return (
@@ -30,19 +31,30 @@ export default function Landing() {
   )
 
   const icono = tipoIconos[negocio.tipo] || tipoIconos.default
+  const serviciosConPrecio = servicios.filter((servicio) => Number(servicio.precio) > 0)
+  const precioDesde = serviciosConPrecio.length
+    ? Math.min(...serviciosConPrecio.map((servicio) => Number(servicio.precio)))
+    : null
+  const tipoLabel = {
+    clinica: 'Clínica',
+    peluqueria: 'Peluquería',
+    cancha: 'Cancha',
+    otro: 'Agenda',
+  }[negocio.tipo] || 'Agenda'
 
-  function handleReservar() {
+  function handleReservar(servicio = null) {
     resetBooking()
     setNegocio(negocio)
+    if (servicio) setServicio(servicio)
     navigate(`/${slug}/reservar`)
   }
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen bg-bg pb-24">
       {/* Header del negocio */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-accent/10 to-transparent pointer-events-none" />
-        <div className="max-w-lg mx-auto px-4 pt-12 pb-8">
+        <div className="max-w-lg mx-auto px-4 pt-10 pb-8">
           <div className="flex items-center gap-4 mb-6">
             <div className="w-16 h-16 bg-surface border border-border rounded-2xl flex items-center justify-center text-3xl">
               {negocio.logo_url
@@ -52,7 +64,7 @@ export default function Landing() {
             </div>
             <div>
               <h1 className="text-2xl font-semibold text-white">{negocio.nombre}</h1>
-              <p className="text-sm text-muted capitalize">{negocio.tipo}</p>
+              <p className="text-sm text-muted">{tipoLabel}</p>
             </div>
           </div>
 
@@ -60,7 +72,22 @@ export default function Landing() {
             <p className="text-muted text-sm leading-relaxed mb-6">{negocio.descripcion}</p>
           )}
 
-          <Button onClick={handleReservar} className="w-full py-3 text-base">
+          <div className="grid grid-cols-3 gap-2 mb-6">
+            <div className="bg-surface border border-border rounded-lg px-3 py-3">
+              <p className="text-lg font-mono text-white">{servicios.length}</p>
+              <p className="text-xs text-muted">servicios</p>
+            </div>
+            <div className="bg-surface border border-border rounded-lg px-3 py-3">
+              <p className="text-lg font-mono text-white">{precioDesde ? `$${precioDesde.toLocaleString('es-AR')}` : '-'}</p>
+              <p className="text-xs text-muted">desde</p>
+            </div>
+            <div className="bg-surface border border-border rounded-lg px-3 py-3">
+              <p className="text-lg font-mono text-white">24h</p>
+              <p className="text-xs text-muted">online</p>
+            </div>
+          </div>
+
+          <Button onClick={() => handleReservar()} disabled={servicios.length === 0} className="w-full py-3 text-base">
             Reservar turno
           </Button>
         </div>
@@ -71,24 +98,36 @@ export default function Landing() {
         <h2 className="text-xs font-mono text-muted uppercase tracking-widest mb-4">Servicios</h2>
 
         {servicios.length === 0
-          ? <EmptyState icon="🛠️" title="Sin servicios configurados" />
+          ? (
+            <div className="bg-surface border border-border rounded-xl px-5 py-8">
+              <EmptyState
+                icon="🛠️"
+                title="Agenda en preparación"
+                description="Este negocio todavía no publicó servicios para reservar."
+              />
+            </div>
+          )
           : (
             <div className="flex flex-col gap-3">
               {servicios.map(s => (
-                <div key={s.id} className="bg-surface border border-border rounded-xl px-5 py-4 flex items-center justify-between">
+                <button
+                  key={s.id}
+                  onClick={() => handleReservar(s)}
+                  className="bg-surface border border-border rounded-xl px-5 py-4 text-left flex items-center justify-between gap-4 hover:border-accent transition-colors"
+                >
                   <div>
                     <p className="text-sm font-medium text-white">{s.nombre}</p>
-                    <p className="text-xs text-muted mt-0.5">{s.duracion_min} min</p>
+                    <p className="text-xs text-muted mt-0.5">
+                      {s.duracion_min} min{s.requiere_pago ? ' · pago online' : ''}
+                    </p>
                   </div>
                   {s.precio && (
                     <div className="text-right">
                       <p className="text-sm font-mono text-accent3">${s.precio.toLocaleString('es-AR')}</p>
-                      {s.requiere_pago && (
-                        <p className="text-xs text-muted">pago requerido</p>
-                      )}
+                      <p className="text-xs text-muted">elegir</p>
                     </div>
                   )}
-                </div>
+                </button>
               ))}
             </div>
           )
@@ -101,6 +140,16 @@ export default function Landing() {
           Ver mis turnos reservados →
         </button>
       </div>
+
+      {servicios.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-bg/95 border-t border-border px-4 py-3 backdrop-blur">
+          <div className="max-w-lg mx-auto">
+            <Button onClick={() => handleReservar()} className="w-full py-3">
+              Reservar turno
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
