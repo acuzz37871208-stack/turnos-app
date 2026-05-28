@@ -686,16 +686,39 @@ function TabApariencia({ negocio, setNegocio }) {
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState(null)
 
   async function guardar(e) {
-    e.preventDefault(); setSaving(true)
-    await supabase.from('negocios').update({
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+
+    const updates = {
       color_primario: form.color_primario,
       color_fondo:    form.color_fondo,
       logo_url:       form.logo_url || null,
-    }).eq('id', negocio.id)
-    setNegocio(n => ({ ...n, ...form }))
-    setSaving(false); setSaved(true)
+    }
+
+    const { data, error } = await supabase
+      .from('negocios')
+      .update(updates)
+      .eq('id', negocio.id)
+      .select()
+      .single()
+
+    if (error) {
+      setError(error.message)
+      setSaving(false)
+      return
+    }
+
+    document.body.style.backgroundColor = updates.color_fondo
+    document.documentElement.style.setProperty('--color-bg', updates.color_fondo)
+    document.documentElement.style.setProperty('--color-accent', updates.color_primario)
+
+    setNegocio(n => ({ ...n, ...data }))
+    setSaving(false)
+    setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
 
@@ -751,6 +774,11 @@ function TabApariencia({ negocio, setNegocio }) {
             Podés subir tu imagen en <span className="text-accent">imgur.com</span> y pegar el link acá.
           </p>
         </div>
+        {error && (
+          <div className="bg-accent2 bg-opacity-10 border border-accent2 border-opacity-30 rounded-xl px-4 py-3 mt-6">
+            <p className="text-sm text-accent2">{error}</p>
+          </div>
+        )}
         <div className="flex items-center gap-4 mt-6">
           <Button type="submit" disabled={saving} className="flex-1">
             {saving ? <Spinner size="sm" /> : 'Guardar apariencia'}
