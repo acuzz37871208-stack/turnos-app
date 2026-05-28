@@ -6,6 +6,13 @@ import { Input, Button, Spinner, StepIndicator } from '../../components/ui'
 const STEPS = ['Cuenta', 'Negocio', 'Horarios', 'Servicios', '¡Listo!']
 const TIPOS = ['clinica', 'peluqueria', 'cancha', 'otro']
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+const STEP_COPY = [
+  { title: 'Creá tu cuenta', description: 'Usala para administrar tu agenda y tus turnos.' },
+  { title: 'Datos del negocio', description: 'Definí cómo van a encontrarte tus clientes.' },
+  { title: 'Horarios de atención', description: 'Estos días y horarios se usan para calcular disponibilidad.' },
+  { title: 'Servicios', description: 'Cargá lo que ofrecés. Después podés editarlo desde Configuración.' },
+  { title: 'Agenda publicada', description: 'Ya podés compartir tu link y recibir reservas.' },
+]
 
 function errorMessage(error) {
   if (!error) return 'No pudimos guardar los datos. Intentá de nuevo.'
@@ -32,6 +39,7 @@ export default function Onboarding() {
   const [horarios, setHorarios] = useState({ dias: [1,2,3,4,5], hora_inicio: '09:00', hora_fin: '18:00', intervalo: 30 })
   const [servicios, setServicios] = useState([{ nombre: '', duracion_min: 30, precio: '', requiere_pago: false }])
   const [negocioCreado, setNegocioCreado] = useState(null)
+  const currentCopy = STEP_COPY[step]
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user }, error }) => {
@@ -51,6 +59,12 @@ export default function Onboarding() {
   async function crearCuenta(e) {
     e.preventDefault()
     setLoading(true); setError(null)
+    if (!email.trim() || password.length < 8) {
+      setError('Ingresá un email y una contraseña de al menos 8 caracteres.')
+      setLoading(false)
+      return
+    }
+
     const { error: signUpError } = await supabase.auth.signUp({ email, password })
     if (signUpError) { setError(signUpError.message); setLoading(false); return }
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
@@ -72,6 +86,12 @@ export default function Onboarding() {
   async function guardarNegocio(e) {
     e.preventDefault()
     setLoading(true); setError(null)
+
+    if (!negocio.nombre.trim()) {
+      setError('Ingresá el nombre del negocio.')
+      setLoading(false)
+      return
+    }
 
     if (!negocio.slug || negocio.slug.length < 3) {
       setError('La URL de tu agenda tiene que tener al menos 3 caracteres.')
@@ -145,6 +165,15 @@ export default function Onboarding() {
   async function guardarServicios(e) {
     e.preventDefault()
     setLoading(true); setError(null)
+    const serviciosValidos = servicios.filter(s => s.nombre.trim())
+
+    const invalidService = serviciosValidos.find(s => Number(s.duracion_min) < 5 || (s.precio && Number(s.precio) < 0))
+    if (invalidService) {
+      setError('Revisá duración y precio de tus servicios.')
+      setLoading(false)
+      return
+    }
+
     const rows = servicios.filter(s => s.nombre.trim()).map(s => ({
       negocio_id: negocioCreado.id, nombre: s.nombre,
       duracion_min: Number(s.duracion_min),
@@ -195,7 +224,7 @@ export default function Onboarding() {
       <div className="mb-8">
         <div className="w-10 h-10 bg-accent bg-opacity-15 border border-accent border-opacity-30 rounded-xl flex items-center justify-center text-accent text-lg mb-4">⚡</div>
         <h1 className="text-xl font-semibold text-white">Registrá tu negocio</h1>
-        <p className="text-sm text-muted">Estás a 5 minutos de tener tu agenda online</p>
+        <p className="text-sm text-muted">Paso {step + 1} de {STEPS.length} · {currentCopy.description}</p>
       </div>
 
       <StepIndicator steps={STEPS} current={step} />
@@ -219,7 +248,8 @@ export default function Onboarding() {
             </div>
           ) : (
             <form onSubmit={crearCuenta} className="flex flex-col gap-4">
-              <h2 className="text-lg font-medium text-white mb-1">Creá tu cuenta</h2>
+              <h2 className="text-lg font-medium text-white mb-1">{currentCopy.title}</h2>
+              <p className="text-sm text-muted -mt-3">No necesitás tarjeta ni configuración técnica para empezar.</p>
               <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" required />
               <Input label="Contraseña" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="mínimo 8 caracteres" minLength={8} required />
               {error && <p className="text-sm text-accent2">{error}</p>}
@@ -236,7 +266,8 @@ export default function Onboarding() {
 
         {step === 1 && (
           <form onSubmit={guardarNegocio} className="flex flex-col gap-4">
-            <h2 className="text-lg font-medium text-white mb-1">Tu negocio</h2>
+            <h2 className="text-lg font-medium text-white mb-1">{currentCopy.title}</h2>
+            <p className="text-sm text-muted -mt-3">La URL pública queda lista al terminar el alta.</p>
             <Input label="Nombre del negocio" value={negocio.nombre}
               onChange={e => setNegocio(n => ({ ...n, nombre: e.target.value, slug: slugify(e.target.value) }))}
               placeholder="Peluquería Luna" required />
@@ -273,7 +304,8 @@ export default function Onboarding() {
 
         {step === 2 && (
           <form onSubmit={guardarHorarios} className="flex flex-col gap-5">
-            <h2 className="text-lg font-medium text-white mb-1">Horarios de atención</h2>
+            <h2 className="text-lg font-medium text-white mb-1">{currentCopy.title}</h2>
+            <p className="text-sm text-muted -mt-3">Podés ajustar horarios más específicos después desde el panel.</p>
             <div>
               <label className="block text-sm text-muted mb-2">Días activos</label>
               <div className="flex gap-2 flex-wrap">
@@ -292,18 +324,6 @@ export default function Onboarding() {
               <Input label="Cierre" type="time" value={horarios.hora_fin}
                 onChange={e => setHorarios(h => ({ ...h, hora_fin: e.target.value }))} />
             </div>
-            <div>
-              <label className="block text-sm text-muted mb-2">Intervalo entre turnos</label>
-              <div className="flex gap-2">
-                {[15,20,30,45,60].map(m => (
-                  <button key={m} type="button" onClick={() => setHorarios(h => ({ ...h, intervalo: m }))}
-                    className={`px-4 py-2 rounded-lg text-sm border transition-all
-                      ${horarios.intervalo === m ? 'border-accent text-white bg-accent bg-opacity-10' : 'border-border text-muted'}`}>
-                    {m}min
-                  </button>
-                ))}
-              </div>
-            </div>
             <div className="flex gap-3 mt-2">
               <Button type="button" variant="ghost" onClick={back}>Volver</Button>
               <Button type="submit" disabled={loading} className="flex-1">
@@ -315,7 +335,8 @@ export default function Onboarding() {
 
         {step === 3 && (
           <form onSubmit={guardarServicios} className="flex flex-col gap-4">
-            <h2 className="text-lg font-medium text-white mb-1">Tus servicios</h2>
+            <h2 className="text-lg font-medium text-white mb-1">{currentCopy.title}</h2>
+            <p className="text-sm text-muted -mt-3">El primer servicio alcanza para publicar. Luego podés sumar más.</p>
             {servicios.map((s, i) => (
               <div key={i} className="bg-surface border border-border rounded-xl p-4 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
@@ -363,13 +384,16 @@ export default function Onboarding() {
             <div className="w-20 h-20 bg-accent3 bg-opacity-15 border border-accent3 border-opacity-30 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
               🎉
             </div>
-            <h2 className="text-2xl font-semibold text-white mb-2">¡Todo listo!</h2>
-            <p className="text-muted text-sm mb-6">Tu agenda está activa y lista para recibir turnos</p>
+            <h2 className="text-2xl font-semibold text-white mb-2">{currentCopy.title}</h2>
+            <p className="text-muted text-sm mb-6">Compartí este link con tus clientes o probalo como si fueras uno de ellos.</p>
             <div className="bg-surface border border-border rounded-xl px-5 py-4 mb-8">
               <p className="text-xs font-mono text-muted mb-1">Tu URL pública</p>
               <p className="text-accent font-mono text-sm break-all">{urlBase}/{negocioCreado?.slug}</p>
             </div>
             <div className="flex flex-col gap-3">
+              <Button onClick={() => window.open(`${urlBase}/${negocioCreado?.slug}`, '_blank', 'noopener,noreferrer')} variant="ghost" className="w-full">
+                Ver agenda pública
+              </Button>
               <Button onClick={() => navigate('/admin')} className="w-full">Ir al panel →</Button>
               <button
                 onClick={() => navigator.clipboard.writeText(`${urlBase}/${negocioCreado?.slug}`)}
