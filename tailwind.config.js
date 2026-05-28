@@ -8,10 +8,10 @@ export default {
         mono: ['Space Mono', 'monospace'],
       },
       colors: {
-        bg: '#0a0a0f',
+        bg: 'rgb(var(--color-bg-rgb, 10 10 15) / <alpha-value>)',
         surface: '#13131a',
         border: '#1e1e2e',
-        accent: '#7c6aff',
+        accent: 'rgb(var(--color-accent-rgb, 124 106 255) / <alpha-value>)',
         accent2: '#ff6a6a',
         accent3: '#6affb8',
         muted: '#55556a',
@@ -20,5 +20,4 @@ export default {
   },
   plugins: [],
 }
-
 

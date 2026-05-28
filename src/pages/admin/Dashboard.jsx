@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../services/supabase'
 import { Badge, Spinner, Button } from '../../components/ui'
+import { applyBusinessTheme } from '../../lib/theme'
 
 function fechaLocalISO(date = new Date()) {
   const year = date.getFullYear()
@@ -68,9 +69,7 @@ export default function AdminDashboard() {
       setNegocio(neg)
       if (neg) {
         fetchTurnos(neg.id, filtroFecha)
-        document.body.style.backgroundColor = neg.color_fondo || '#0a0a0f'
-        document.documentElement.style.setProperty('--color-bg', neg.color_fondo || '#0a0a0f')
-        document.documentElement.style.setProperty('--color-accent', neg.color_primario || '#7c6aff')
+        applyBusinessTheme(neg)
       }
     }
     init()

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { applyBusinessTheme } from '../../lib/theme'
 import { Input, Button, Spinner } from '../../components/ui'
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
@@ -731,9 +732,7 @@ function TabApariencia({ negocio, setNegocio }) {
       return
     }
 
-    document.body.style.backgroundColor = updates.color_fondo
-    document.documentElement.style.setProperty('--color-bg', updates.color_fondo)
-    document.documentElement.style.setProperty('--color-accent', updates.color_primario)
+    applyBusinessTheme(updates)
 
     setNegocio(n => ({ ...n, ...data.negocio }))
     setSaving(false)

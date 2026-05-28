@@ -5,9 +5,16 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-bg: #0a0a0f;
+    --color-bg-rgb: 10 10 15;
+    --color-accent: #7c6aff;
+    --color-accent-rgb: 124 106 255;
+  }
+
   * { box-sizing: border-box; }
   body {
-    background-color: var(--color-bg, #0a0a0f);
+    background-color: rgb(var(--color-bg-rgb, 10 10 15));
     color: #e8e8f0;
     font-family: 'DM Sans', sans-serif;
     -webkit-font-smoothing: antialiased;

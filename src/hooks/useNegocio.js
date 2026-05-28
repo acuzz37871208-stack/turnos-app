@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { applyBusinessTheme, resetBusinessTheme } from '../lib/theme'
 
 export function useNegocio(slug) {
   const [negocio, setNegocio] = useState(null)
@@ -31,9 +32,7 @@ export function useNegocio(slug) {
         setServicios(svcs || [])
         setProfesionales(profs || [])
 
-        // Aplicar tema del negocio
-        if (neg.color_primario) document.documentElement.style.setProperty('--color-accent', neg.color_primario)
-        if (neg.color_fondo) document.documentElement.style.setProperty('--color-bg', neg.color_fondo)
+        applyBusinessTheme(neg)
 
       } catch (err) {
         setError(err.message)
@@ -46,8 +45,7 @@ export function useNegocio(slug) {
 
     // Limpiar tema al desmontar
     return () => {
-      document.documentElement.style.removeProperty('--color-accent')
-      document.documentElement.style.removeProperty('--color-bg')
+      resetBusinessTheme()
     }
   }, [slug])
 
