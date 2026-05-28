@@ -76,6 +76,51 @@ export function Spinner({ size = 'md' }) {
   )
 }
 
+// ── LoadingScreen ─────────────────────────────────────
+export function LoadingScreen({ title = 'Cargando', description = 'Preparando la información...' }) {
+  return (
+    <div className="min-h-screen bg-bg flex items-center justify-center px-4">
+      <div className="bg-surface border border-border rounded-xl px-6 py-8 w-full max-w-sm flex flex-col items-center gap-4 text-center">
+        <Spinner size="lg" />
+        <div>
+          <p className="text-white font-medium">{title}</p>
+          <p className="text-sm text-muted mt-1">{description}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── LoadingBlock ─────────────────────────────────────
+export function LoadingBlock({ title = 'Cargando', description = 'Preparando la información...' }) {
+  return (
+    <div className="bg-surface border border-border rounded-xl px-5 py-10 flex flex-col items-center gap-3 text-center">
+      <Spinner size="lg" />
+      <div>
+        <p className="text-white font-medium">{title}</p>
+        <p className="text-sm text-muted mt-1">{description}</p>
+      </div>
+    </div>
+  )
+}
+
+// ── Alert ─────────────────────────────────────────────
+export function Alert({ tone = 'danger', title, children, className = '' }) {
+  const tones = {
+    danger: 'bg-accent2 bg-opacity-10 border-accent2 border-opacity-30 text-accent2',
+    warning: 'bg-yellow-400 bg-opacity-10 border-yellow-400 border-opacity-30 text-yellow-400',
+    info: 'bg-accent bg-opacity-10 border-accent border-opacity-30 text-accent',
+    success: 'bg-accent3 bg-opacity-10 border-accent3 border-opacity-30 text-accent3',
+  }
+
+  return (
+    <div className={`border rounded-xl px-4 py-3 ${tones[tone]} ${className}`}>
+      {title && <p className="text-sm font-medium mb-1">{title}</p>}
+      {children && <p className="text-sm leading-relaxed">{children}</p>}
+    </div>
+  )
+}
+
 // ── PageLayout ──────────────────────────────────────────────
 export function PageLayout({ children, maxWidth = 'max-w-lg' }) {
   return (
@@ -104,12 +149,13 @@ export function StepIndicator({ steps, current }) {
 }
 
 // ── EmptyState ──────────────────────────────────────────────
-export function EmptyState({ icon = '📭', title, description }) {
+export function EmptyState({ icon = '📭', title, description, action }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
       <span className="text-4xl">{icon}</span>
       <p className="text-white font-medium">{title}</p>
       {description && <p className="text-sm text-muted max-w-xs">{description}</p>}
+      {action && <div className="mt-2">{action}</div>}
     </div>
   )
 }

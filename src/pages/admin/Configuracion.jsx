@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { applyBusinessTheme } from '../../lib/theme'
-import { Input, Button, Spinner } from '../../components/ui'
+import { Input, Button, Spinner, LoadingScreen } from '../../components/ui'
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 const TIPOS_NEGOCIO = ['clinica', 'peluqueria', 'cancha', 'otro']
@@ -87,7 +87,7 @@ export default function Configuracion() {
     init()
   }, [loadChecklist, navigate])
 
-  if (loading) return <div className="min-h-screen bg-bg flex items-center justify-center"><Spinner size="lg" /></div>
+  if (loading) return <LoadingScreen title="Cargando configuración" description="Buscando los datos de tu agenda." />
 
   const publicUrl = `${window.location.origin}/${negocio?.slug}`
   const readyToPublish = checklist.servicios > 0 && checklist.horarios > 0

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../services/supabase'
-import { Badge, Spinner, Button } from '../../components/ui'
+import { Badge, Button, LoadingBlock } from '../../components/ui'
 import { applyBusinessTheme } from '../../lib/theme'
 
 function fechaLocalISO(date = new Date()) {
@@ -115,7 +115,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-bg">
-      {/* Header */}
       <header className="border-b border-border px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="font-semibold text-white">{negocio?.nombre || 'Dashboard'}</h1>
@@ -198,7 +197,7 @@ export default function AdminDashboard() {
 
         {/* Lista de turnos */}
         {loading ? (
-          <div className="flex justify-center py-12"><Spinner size="lg" /></div>
+          <LoadingBlock title="Cargando turnos" description="Actualizando la agenda del día." />
         ) : turnosFiltrados.length === 0 ? (
           <div className="bg-surface border border-border rounded-xl px-5 py-10 text-center">
             <p className="text-white font-medium">No hay turnos para mostrar</p>

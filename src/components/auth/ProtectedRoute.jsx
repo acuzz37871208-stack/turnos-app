@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../../services/supabase'
-import { Spinner } from '../ui'
+import { LoadingScreen } from '../ui'
 
 export default function ProtectedRoute({ children }) {
   const [loading, setLoading] = useState(true)
@@ -36,11 +36,7 @@ export default function ProtectedRoute({ children }) {
   }, [])
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-bg flex items-center justify-center">
-        <Spinner size="lg" />
-      </div>
-    )
+    return <LoadingScreen title="Validando acceso" description="Un momento mientras abrimos tu panel." />
   }
 
   if (!isAuthenticated) {

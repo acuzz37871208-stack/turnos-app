@@ -188,7 +188,7 @@ export default function MisTurnos() {
 
       {buscado && (
         turnos.length === 0
-          ? <EmptyState icon="📭" title="No encontramos turnos" description="Verificá el teléfono y email ingresados" />
+          ? <EmptyState icon="📭" title="No encontramos turnos" description="Verificá que el teléfono y email coincidan con los usados al reservar." />
           : (
             <div className="flex flex-col gap-3">
               <p className="text-xs font-mono text-muted uppercase tracking-widest">

@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useNegocio } from '../hooks/useNegocio'
 import { useBookingStore } from '../store/bookingStore'
-import { Button, Spinner, EmptyState } from '../components/ui'
+import { Button, EmptyState, LoadingScreen } from '../components/ui'
 
 const tipoIconos = {
   clinica: '🏥',
@@ -19,14 +19,17 @@ export default function Landing() {
   const resetBooking = useBookingStore(s => s.resetBooking)
 
   if (loading) return (
-    <div className="min-h-screen bg-bg flex items-center justify-center">
-      <Spinner size="lg" />
-    </div>
+    <LoadingScreen title="Cargando agenda" description="Estamos buscando los servicios disponibles." />
   )
 
   if (error || !negocio) return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4">
-      <EmptyState icon="🔍" title="Negocio no encontrado" description={`No existe ningún negocio con la URL "${slug}"`} />
+      <EmptyState
+        icon="🔍"
+        title="Agenda no encontrada"
+        description={`No encontramos una agenda publicada con la URL "${slug}".`}
+        action={<Button onClick={() => navigate('/onboarding')} variant="ghost" className="text-sm px-3 py-2">Crear mi agenda</Button>}
+      />
     </div>
   )
 

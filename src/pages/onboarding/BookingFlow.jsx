@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useNegocio } from '../../hooks/useNegocio'
 import { useBookingStore } from '../../store/bookingStore'
-import { Button, StepIndicator, Spinner } from '../../components/ui'
+import { Button, StepIndicator, LoadingScreen, Alert } from '../../components/ui'
 import StepServicio from '../booking/StepServicio'
 import StepProfesional from '../booking/StepProfesional'
 import StepFechaHora from '../booking/StepFechaHora'
@@ -67,11 +67,7 @@ export default function BookingFlow() {
       ]
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-bg flex items-center justify-center">
-        <Spinner size="lg" />
-      </div>
-    )
+    return <LoadingScreen title="Cargando reserva" description="Buscando servicios y horarios disponibles." />
   }
 
   if (error || !negocio) {
@@ -82,6 +78,7 @@ export default function BookingFlow() {
           <p className="text-sm text-muted mb-6">
             {error || 'La URL puede ser incorrecta o el negocio ya no estar disponible.'}
           </p>
+          <Alert tone="info" className="mb-5">Verificá el link o volvé a la agenda principal.</Alert>
           <Button onClick={() => navigate('/')}>Ir al inicio</Button>
         </div>
       </div>

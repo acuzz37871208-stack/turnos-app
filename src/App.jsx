@@ -9,11 +9,12 @@ import Dashboard      from './pages/admin/Dashboard'
 import Configuracion  from './pages/admin/Configuracion'
 import Onboarding     from './pages/onboarding/Onboarding'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import { LoadingScreen } from './components/ui'
 
 export default function App() {
   const { loading } = useAuth()
 
-  if (loading) return <p>Cargando...</p>
+  if (loading) return <LoadingScreen title="Cargando Turnos" description="Estamos preparando tu sesión." />
 
   return (
     <BrowserRouter>
