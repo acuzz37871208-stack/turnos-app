@@ -10,6 +10,13 @@ function TurnoCard({ turno, onCancelar }) {
 
   const cancelable = ['pendiente', 'confirmado', 'pendiente_pago'].includes(turno.estado)
   const hora = turno.hora_inicio?.slice(0, 5)
+  const statusHelp = {
+    pendiente: 'El negocio todavía puede confirmar este turno.',
+    pendiente_pago: 'Estamos esperando confirmación de pago.',
+    confirmado: 'Tu turno está confirmado.',
+    atendido: 'Este turno ya fue atendido.',
+    cancelado: 'Este turno fue cancelado.',
+  }[turno.estado]
 
   return (
     <div className="bg-surface border border-border rounded-xl p-5">
@@ -20,6 +27,7 @@ function TurnoCard({ turno, onCancelar }) {
           {turno.profesionales && (
             <p className="text-xs text-muted mt-0.5">con {turno.profesionales.nombre}</p>
           )}
+          {statusHelp && <p className="text-xs text-muted mt-2">{statusHelp}</p>}
         </div>
         <Badge estado={turno.estado} />
       </div>
@@ -47,6 +55,9 @@ export default function MisTurnos() {
   const [loading, setLoading] = useState(false)
   const [buscado, setBuscado] = useState(false)
   const [error, setError] = useState(null)
+  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+  const telefonoValido = telefono.replace(/\D/g, '').length >= 8
+  const canSearch = telefonoValido && emailValido
 
   function mapTurno(row) {
     return {
@@ -156,6 +167,8 @@ export default function MisTurnos() {
             value={telefono}
             onChange={e => setTelefono(e.target.value)}
             type="tel"
+            inputMode="tel"
+            error={telefono && !telefonoValido ? 'Ingresá un teléfono válido' : null}
           />
           <Input
             label="Email"
@@ -163,9 +176,10 @@ export default function MisTurnos() {
             value={email}
             onChange={e => setEmail(e.target.value)}
             type="email"
+            error={email && !emailValido ? 'Ingresá un email válido' : null}
           />
         </div>
-        <Button type="submit" disabled={loading || !telefono.trim() || !email.trim()} className="w-full sm:w-auto sm:self-end">
+        <Button type="submit" disabled={loading || !canSearch} className="w-full sm:w-auto sm:self-end">
           {loading ? <Spinner size="sm" /> : 'Buscar'}
         </Button>
       </form>

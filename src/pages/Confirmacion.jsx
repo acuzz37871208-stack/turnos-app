@@ -38,13 +38,19 @@ export default function Confirmacion() {
     : isFailedPayment
       ? 'El turno no queda confirmado. Podés volver a intentar la reserva.'
       : `Te enviamos un recordatorio a ${turnoConfirmado.cliente_email}`
+  const statusTone = isFailedPayment
+    ? 'bg-accent2 bg-opacity-15 border-accent2 border-opacity-30 text-accent2'
+    : isPendingPayment
+      ? 'bg-yellow-400 bg-opacity-15 border-yellow-400 border-opacity-30 text-yellow-400'
+      : 'bg-accent3 bg-opacity-15 border-accent3 border-opacity-30 text-accent3'
+  const statusIcon = isFailedPayment ? '!' : isPendingPayment ? '…' : '✓'
 
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center page-enter">
         {/* Ícono de éxito */}
-        <div className="w-20 h-20 bg-accent3 bg-opacity-15 border border-accent3 border-opacity-30 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
-          ✓
+        <div className={`w-20 h-20 border rounded-full flex items-center justify-center text-4xl mx-auto mb-6 ${statusTone}`}>
+          {statusIcon}
         </div>
 
         <h1 className="text-2xl font-semibold text-white mb-2">{title}</h1>
@@ -57,12 +63,23 @@ export default function Confirmacion() {
           <p className="text-xs font-mono text-muted uppercase tracking-widest mb-3">Tu turno</p>
           <p className="text-white font-medium">{servicio?.nombre}</p>
           <p className="text-muted text-sm mt-1">{fechaFormateada} · {hora}hs</p>
+          <p className="text-muted text-sm mt-1">{turnoConfirmado.cliente_nombre}</p>
           <div className="mt-3 pt-3 border-t border-border">
             <p className="text-xs font-mono text-muted">
               # {turnoConfirmado.id?.slice(0, 8).toUpperCase()}
             </p>
           </div>
         </div>
+
+        {(isPendingPayment || isFailedPayment) && (
+          <div className={`border rounded-xl px-4 py-3 mb-6 text-left ${statusTone}`}>
+            <p className="text-sm">
+              {isPendingPayment
+                ? 'Si el pago se aprueba en unos minutos, el turno aparecerá como confirmado en Mis turnos.'
+                : 'Podés volver al inicio y reservar nuevamente el mismo u otro horario disponible.'}
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-col gap-3">
           <Button
