@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { Button, Input, Badge, Spinner, EmptyState } from '../components/ui'
+import { Alert, Button, Input, Badge, Spinner, EmptyState, LoadingBlock } from '../components/ui'
 
 function TurnoCard({ turno, onCancelar }) {
   const fecha = new Date(turno.fecha + 'T12:00:00').toLocaleDateString('es-AR', {
@@ -20,8 +20,8 @@ function TurnoCard({ turno, onCancelar }) {
 
   return (
     <div className="bg-surface border border-border rounded-xl p-5">
-      <div className="flex items-start justify-between mb-3">
-        <div>
+      <div className="flex flex-col gap-3 mb-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <p className="font-medium text-white">{turno.servicios?.nombre}</p>
           <p className="text-sm text-muted mt-0.5">{fecha} · {hora}hs</p>
           {turno.profesionales && (
@@ -29,16 +29,20 @@ function TurnoCard({ turno, onCancelar }) {
           )}
           {statusHelp && <p className="text-xs text-muted mt-2">{statusHelp}</p>}
         </div>
-        <Badge estado={turno.estado} />
+        <div className="sm:ml-4">
+          <Badge estado={turno.estado} />
+        </div>
       </div>
 
       {cancelable && (
-        <button
-          onClick={() => onCancelar(turno.id)}
-          className="text-xs text-accent2 hover:underline transition-colors"
-        >
-          Cancelar turno
-        </button>
+        <div className="pt-3 border-t border-border">
+          <button
+            onClick={() => onCancelar(turno.id)}
+            className="text-xs text-accent2 hover:underline transition-colors"
+          >
+            Cancelar turno
+          </button>
+        </div>
       )}
     </div>
   )
@@ -157,7 +161,11 @@ export default function MisTurnos() {
       </button>
 
       <h1 className="text-xl font-semibold text-white mb-1">Mis turnos</h1>
-      <p className="text-sm text-muted mb-8">Ingresá los datos usados al reservar</p>
+      <p className="text-sm text-muted mb-5">Ingresá los datos usados al reservar</p>
+
+      <Alert tone="info" className="mb-6">
+        Por seguridad, mostramos tus turnos solo si el teléfono y el email coinciden con la reserva.
+      </Alert>
 
       <form onSubmit={buscar} className="flex flex-col gap-3 mb-8">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -184,16 +192,23 @@ export default function MisTurnos() {
         </Button>
       </form>
 
-      {error && <p className="text-sm text-accent2 mb-4">{error}</p>}
+      {error && <Alert tone="danger" className="mb-4">{error}</Alert>}
 
-      {buscado && (
+      {loading && <LoadingBlock title="Buscando turnos" description="Revisando las reservas asociadas a esos datos." />}
+
+      {!loading && buscado && (
         turnos.length === 0
-          ? <EmptyState icon="📭" title="No encontramos turnos" description="Verificá que el teléfono y email coincidan con los usados al reservar." />
+          ? <EmptyState icon="📭" title="No encontramos turnos" description="Verificá que el teléfono y email coincidan con los usados al reservar." action={<Button variant="ghost" onClick={() => navigate(`/${slug}`)} className="text-sm px-3 py-2">Volver a la agenda</Button>} />
           : (
             <div className="flex flex-col gap-3">
-              <p className="text-xs font-mono text-muted uppercase tracking-widest">
-                {turnos.length} turno{turnos.length !== 1 ? 's' : ''}
-              </p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-mono text-muted uppercase tracking-widest">
+                  {turnos.length} turno{turnos.length !== 1 ? 's' : ''}
+                </p>
+                <button onClick={() => navigate(`/${slug}`)} className="text-xs text-muted hover:text-white transition-colors">
+                  Reservar otro
+                </button>
+              </div>
               {turnos.map(t => (
                 <TurnoCard key={t.id} turno={t} onCancelar={cancelar} />
               ))}

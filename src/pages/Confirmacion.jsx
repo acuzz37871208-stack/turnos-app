@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useBookingStore } from '../store/bookingStore'
-import { Button } from '../components/ui'
+import { Alert, Button } from '../components/ui'
 
 export default function Confirmacion() {
   const navigate = useNavigate()
@@ -37,7 +37,9 @@ export default function Confirmacion() {
     ? 'Tu turno queda pendiente hasta que MercadoPago confirme el cobro.'
     : isFailedPayment
       ? 'El turno no queda confirmado. Podés volver a intentar la reserva.'
-      : `Te enviamos un recordatorio a ${turnoConfirmado.cliente_email}`
+      : isPaymentReturn
+        ? `Te enviamos la confirmación a ${turnoConfirmado.cliente_email}`
+        : `Te enviamos un recordatorio a ${turnoConfirmado.cliente_email}`
   const statusTone = isFailedPayment
     ? 'bg-accent2 bg-opacity-15 border-accent2 border-opacity-30 text-accent2'
     : isPendingPayment
@@ -64,6 +66,7 @@ export default function Confirmacion() {
           <p className="text-white font-medium">{servicio?.nombre}</p>
           <p className="text-muted text-sm mt-1">{fechaFormateada} · {hora}hs</p>
           <p className="text-muted text-sm mt-1">{turnoConfirmado.cliente_nombre}</p>
+          <p className="text-muted text-xs mt-2 break-all">{turnoConfirmado.cliente_telefono} · {turnoConfirmado.cliente_email}</p>
           <div className="mt-3 pt-3 border-t border-border">
             <p className="text-xs font-mono text-muted">
               # {turnoConfirmado.id?.slice(0, 8).toUpperCase()}
@@ -72,13 +75,17 @@ export default function Confirmacion() {
         </div>
 
         {(isPendingPayment || isFailedPayment) && (
-          <div className={`border rounded-xl px-4 py-3 mb-6 text-left ${statusTone}`}>
-            <p className="text-sm">
-              {isPendingPayment
-                ? 'Si el pago se aprueba en unos minutos, el turno aparecerá como confirmado en Mis turnos.'
-                : 'Podés volver al inicio y reservar nuevamente el mismo u otro horario disponible.'}
-            </p>
-          </div>
+          <Alert tone={isPendingPayment ? 'warning' : 'danger'} className="mb-6 text-left">
+            {isPendingPayment
+              ? 'Si el pago se aprueba en unos minutos, el turno aparecerá como confirmado en Mis turnos.'
+              : 'Podés volver al inicio y reservar nuevamente el mismo u otro horario disponible.'}
+          </Alert>
+        )}
+
+        {!isPendingPayment && !isFailedPayment && (
+          <Alert tone="success" className="mb-6 text-left">
+            Guardá esta pantalla o entrá a Mis turnos para revisar o cancelar la reserva más adelante.
+          </Alert>
         )}
 
         <div className="flex flex-col gap-3">

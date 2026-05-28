@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../services/supabase'
-import { Badge, Button, LoadingBlock } from '../../components/ui'
+import { Alert, Badge, Button, LoadingBlock } from '../../components/ui'
 import { applyBusinessTheme } from '../../lib/theme'
 
 function fechaLocalISO(date = new Date()) {
@@ -33,6 +33,16 @@ function MetricCard({ label, value, color, hint }) {
       {hint && <span className="text-xs text-muted">{hint}</span>}
     </div>
   )
+}
+
+function estadoHelp(estado) {
+  return {
+    pendiente: 'Pendiente de confirmación manual',
+    pendiente_pago: 'Esperando confirmación de MercadoPago',
+    confirmado: 'Confirmado para atender',
+    atendido: 'Turno cerrado',
+    cancelado: 'Turno cancelado',
+  }[estado]
 }
 
 export default function AdminDashboard() {
@@ -165,11 +175,9 @@ export default function AdminDashboard() {
         </div>
 
         {metrics.pendientePago > 0 && (
-          <div className="bg-blue-500 bg-opacity-10 border border-blue-500 border-opacity-30 rounded-xl px-4 py-3 mb-6">
-            <p className="text-sm text-blue-200">
-              Hay {metrics.pendientePago} turno{metrics.pendientePago !== 1 ? 's' : ''} esperando confirmación de MercadoPago.
-            </p>
-          </div>
+          <Alert tone="info" className="mb-6">
+            Hay {metrics.pendientePago} turno{metrics.pendientePago !== 1 ? 's' : ''} esperando confirmación de MercadoPago.
+          </Alert>
         )}
 
         {/* Filtros */}
@@ -253,9 +261,28 @@ export default function AdminDashboard() {
                             Esperando confirmación de MercadoPago
                           </p>
                         )}
+                        {estadoHelp(t.estado) && t.estado !== 'pendiente_pago' && (
+                          <p className="text-xs text-muted">{estadoHelp(t.estado)}</p>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-1 gap-2 mt-4 pt-3 border-t border-border sm:flex sm:flex-wrap">
+                        {t.cliente_telefono && (
+                          <a
+                            href={`tel:${t.cliente_telefono}`}
+                            className="text-xs text-muted border border-border px-3 py-2 rounded-lg hover:text-white hover:border-muted transition text-center"
+                          >
+                            Llamar
+                          </a>
+                        )}
+                        {t.cliente_email && (
+                          <a
+                            href={`mailto:${t.cliente_email}`}
+                            className="text-xs text-muted border border-border px-3 py-2 rounded-lg hover:text-white hover:border-muted transition text-center"
+                          >
+                            Email
+                          </a>
+                        )}
                         {t.estado === 'pendiente' && (
                           <button
                             onClick={() => cambiarEstado(t.id, 'confirmado')}
