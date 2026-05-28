@@ -20,18 +20,14 @@ export default function StepServicio({ servicios, onNext, onBack }) {
         : (
           <div className="flex flex-col gap-3 mb-8">
             {servicios.map(s => (
-              <Card
-                key={s.id}
-                selected={servicio?.id === s.id}
-                onClick={() => handleSelect(s)}
-              >
-                <div className="flex items-start justify-between">
-                  <div>
+              <Card key={s.id} selected={servicio?.id === s.id} onClick={() => handleSelect(s)}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
                     <p className="font-medium text-white">{s.nombre}</p>
                     <p className="text-sm text-muted mt-0.5">{s.duracion_min} min</p>
                     {s.descripcion && <p className="text-xs text-muted mt-1">{s.descripcion}</p>}
                   </div>
-                  <div className="text-right ml-4 flex-shrink-0">
+                  <div className="flex items-center justify-between gap-3 sm:ml-4 sm:block sm:flex-shrink-0 sm:text-right">
                     {s.precio ? (
                       <>
                         <p className="text-sm font-mono text-accent3">${s.precio.toLocaleString('es-AR')}</p>
@@ -52,7 +48,7 @@ export default function StepServicio({ servicios, onNext, onBack }) {
         )
       }
 
-      <div className="flex gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Button variant="ghost" onClick={onBack}>Volver</Button>
         <Button onClick={onNext} disabled={!servicio} className="flex-1">Continuar</Button>
       </div>

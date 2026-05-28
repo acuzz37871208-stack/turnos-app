@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useBookingStore } from '../../store/bookingStore'
 import { supabase } from '../../lib/supabase'
-import { Button, Spinner } from '../../components/ui'
+import { Alert, Button, Spinner } from '../../components/ui'
 
 async function getFunctionErrorMessage(error) {
   const fallback = 'No se pudo iniciar el pago. Intentá de nuevo.'
@@ -16,13 +16,28 @@ async function getFunctionErrorMessage(error) {
   }
 }
 
+function formatFecha(fecha) {
+  if (!fecha) return null
+  return new Date(`${fecha}T12:00:00`).toLocaleDateString('es-AR', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })
+}
+
 export default function StepPago({ negocio, slug, onBack }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const { turnoConfirmado, servicio } = useBookingStore()
+  const { turnoConfirmado, servicio, fecha, hora, cliente } = useBookingStore()
   const total = Number(servicio?.precio || 0)
+  const fechaLabel = formatFecha(fecha)
 
   async function iniciarPago() {
+    if (!turnoConfirmado?.id) {
+      setError('No encontramos el turno reservado. Volvé al resumen y confirmalo nuevamente.')
+      return
+    }
+
     setLoading(true)
     setError(null)
     try {
@@ -52,13 +67,23 @@ export default function StepPago({ negocio, slug, onBack }) {
   return (
     <div>
       <h2 className="text-xl font-semibold text-white mb-1">Pago del turno</h2>
-      <p className="text-sm text-muted mb-6">Completá el pago en MercadoPago para confirmar la reserva</p>
+      <p className="text-sm text-muted mb-6">Tu horario ya está bloqueado. Completá el pago para dejarlo confirmado.</p>
 
       {/* Resumen del pago */}
       <div className="bg-surface border border-border rounded-xl px-5 py-4 mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <p className="text-sm text-muted">Servicio</p>
-          <p className="text-sm text-white">{servicio?.nombre}</p>
+          <p className="text-sm text-white text-right">{servicio?.nombre}</p>
+        </div>
+        <div className="flex items-center justify-between gap-4 mt-3 pt-3 border-t border-border">
+          <p className="text-sm text-muted">Turno</p>
+          <p className="text-sm text-white text-right">
+            {fechaLabel && hora ? `${fechaLabel} · ${hora} hs` : 'Reservado'}
+          </p>
+        </div>
+        <div className="flex items-center justify-between gap-4 mt-3 pt-3 border-t border-border">
+          <p className="text-sm text-muted">Cliente</p>
+          <p className="text-sm text-white text-right break-all">{cliente?.nombre}</p>
         </div>
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
           <p className="text-sm font-semibold text-white">Total</p>
@@ -75,27 +100,25 @@ export default function StepPago({ negocio, slug, onBack }) {
         </div>
       </div>
 
-      <div className="bg-surface border border-border rounded-xl px-4 py-3 mb-4">
-        <div className="flex items-start gap-3">
-          <div className="w-6 h-6 rounded-full bg-accent bg-opacity-15 text-accent flex items-center justify-center text-xs font-bold flex-shrink-0">i</div>
-          <p className="text-xs text-muted leading-relaxed">
-            Tu turno queda bloqueado por 30 minutos. Si el pago no se completa, el horario se libera automáticamente.
-          </p>
-        </div>
-      </div>
+      <Alert tone="info" className="mb-4">
+        Tu turno queda bloqueado por 30 minutos. Si el pago no se completa, el horario se libera automáticamente.
+      </Alert>
 
       {error && (
-        <div className="bg-accent2 bg-opacity-10 border border-accent2 border-opacity-30 rounded-xl px-4 py-3 mb-4">
-          <p className="text-sm text-accent2">{error}</p>
-        </div>
+        <Alert tone="danger" title="No pudimos abrir MercadoPago" className="mb-4">
+          {error}
+        </Alert>
       )}
 
-      <div className="flex gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Button variant="ghost" onClick={onBack} disabled={loading}>Volver</Button>
         <Button onClick={iniciarPago} disabled={loading} className="flex-1">
           {loading ? <Spinner size="sm" /> : error ? 'Reintentar pago' : 'Pagar con MercadoPago'}
         </Button>
       </div>
+      <p className="text-center text-xs text-muted mt-4">
+        Vas a salir momentáneamente a MercadoPago y después volver a la confirmación.
+      </p>
     </div>
   )
 }

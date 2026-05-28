@@ -16,7 +16,7 @@ export default function StepCliente({ onNext, onBack }) {
   return (
     <div>
       <h2 className="text-xl font-semibold text-white mb-1">Tus datos</h2>
-      <p className="text-sm text-muted mb-6">Para enviarte la confirmación del turno</p>
+      <p className="text-sm text-muted mb-6">Los usamos para identificar tu reserva y enviarte la confirmación.</p>
 
       <div className="flex flex-col gap-4 mb-8">
         <Input
@@ -62,7 +62,7 @@ export default function StepCliente({ onNext, onBack }) {
         </div>
       </div>
 
-      <div className="flex gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Button variant="ghost" onClick={onBack}>Volver</Button>
         <Button onClick={onNext} disabled={!valid} className="flex-1">Continuar</Button>
       </div>

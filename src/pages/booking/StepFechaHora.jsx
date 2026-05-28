@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useBookingStore } from '../../store/bookingStore'
 import { useSlots } from '../../hooks/useSlots'
-import { Button, Spinner } from '../../components/ui'
+import { Button, LoadingBlock } from '../../components/ui'
 
 function fechaLocalISO(date = new Date()) {
   const year = date.getFullYear()
@@ -92,7 +92,7 @@ export default function StepFechaHora({ negocio, onNext, onBack }) {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-8"><Spinner /></div>
+            <LoadingBlock title="Buscando horarios" description="Estamos revisando la disponibilidad." />
           ) : slots.length === 0 ? (
             <div className="bg-surface border border-border rounded-xl px-5 py-8 text-center text-sm">
               <p className="text-white font-medium">No hay horarios disponibles</p>
@@ -121,7 +121,7 @@ export default function StepFechaHora({ negocio, onNext, onBack }) {
         </div>
       )}
 
-      <div className="flex gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Button variant="ghost" onClick={onBack}>Volver</Button>
         <Button onClick={onNext} disabled={!fecha || !hora} className="flex-1">Continuar</Button>
       </div>

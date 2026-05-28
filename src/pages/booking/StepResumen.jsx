@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBookingStore } from '../../store/bookingStore'
 import { supabase } from '../../services/supabase'
-import { Button, Spinner } from '../../components/ui'
+import { Alert, Button, Spinner } from '../../components/ui'
 
 const SIN_PROFESIONAL = ['cancha']
 
@@ -59,7 +59,7 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
 
       if (err) {
         if (err.code === '23505') {
-          setError('Ese horario ya fue reservado')
+          setError('Ese horario acaba de ser reservado por otra persona. Volvé y elegí otro horario.')
           setLoading(false)
           return
         }
@@ -80,7 +80,7 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
 
     } catch (err) {
       console.error(err)
-      setError('Error al crear el turno')
+      setError('No pudimos crear el turno. Revisá los datos e intentá nuevamente.')
     } finally {
       setLoading(false)
     }
@@ -104,7 +104,7 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
   return (
     <div>
       <h2 className="text-xl font-semibold text-white mb-1">Resumen del turno</h2>
-      <p className="text-sm text-muted mb-6">Revisá antes de confirmar</p>
+      <p className="text-sm text-muted mb-6">Revisá los datos antes de confirmar la reserva.</p>
 
       <div className="bg-surface border border-border rounded-xl px-5 mb-6">
         <Row label="Negocio"  value={negocio?.nombre} />
@@ -123,22 +123,16 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
       </div>
 
       {requierePago && (
-        <div className="bg-yellow-500 bg-opacity-10 border border-yellow-500 border-opacity-30 rounded-xl px-5 py-4 mb-6">
-          <p className="text-sm text-yellow-400">
-            <span className="font-semibold">Este servicio requiere pago para confirmar.</span>
-            {' '}Vas a ser redirigido al proceso de pago.
-          </p>
-        </div>
+        <Alert tone="warning" title="Pago requerido" className="mb-6">
+          Al continuar, el horario queda reservado por 30 minutos y te llevamos a MercadoPago.
+        </Alert>
       )}
 
-      {/* 🔴 ERROR VISIBLE */}
       {error && (
-        <div className="bg-red-500 bg-opacity-10 border border-red-500 border-opacity-30 rounded-xl px-5 py-3 mb-4">
-          <p className="text-sm text-red-400">{error}</p>
-        </div>
+        <Alert tone="danger" className="mb-4">{error}</Alert>
       )}
 
-      <div className="flex gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Button variant="ghost" onClick={onBack} disabled={loading}>
           Volver
         </Button>
