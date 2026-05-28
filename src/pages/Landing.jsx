@@ -10,6 +10,52 @@ const tipoIconos = {
   default: '🏢',
 }
 
+function Stat({ value, label }) {
+  return (
+    <div className="bg-surface border border-border rounded-lg px-3 py-3">
+      <p className="text-lg font-mono text-white">{value}</p>
+      <p className="text-xs text-muted">{label}</p>
+    </div>
+  )
+}
+
+function ServiceCard({ servicio, onSelect }) {
+  return (
+    <button
+      onClick={() => onSelect(servicio)}
+      className="bg-surface border border-border rounded-xl px-5 py-4 text-left hover:border-accent transition-colors"
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-white">{servicio.nombre}</p>
+          {servicio.descripcion && <p className="text-xs text-muted mt-1">{servicio.descripcion}</p>}
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <span className="text-xs text-muted">{servicio.duracion_min} min</span>
+            {servicio.requiere_pago && (
+              <span className="text-xs text-yellow-400 bg-yellow-400 bg-opacity-10 px-2 py-0.5 rounded-full">
+                pago online
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-end justify-between gap-3 sm:block sm:flex-shrink-0 sm:text-right">
+          {servicio.precio ? (
+            <>
+              <p className="text-sm font-mono text-accent3">${servicio.precio.toLocaleString('es-AR')}</p>
+              <p className="text-xs text-muted">reservar</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-mono text-muted">sin cargo</p>
+              <p className="text-xs text-muted">reservar</p>
+            </>
+          )}
+        </div>
+      </div>
+    </button>
+  )
+}
+
 export default function Landing() {
   const { slug } = useParams()
   const navigate = useNavigate()
@@ -35,6 +81,7 @@ export default function Landing() {
 
   const icono = tipoIconos[negocio.tipo] || tipoIconos.default
   const serviciosConPrecio = servicios.filter((servicio) => Number(servicio.precio) > 0)
+  const serviciosConPago = servicios.filter((servicio) => servicio.requiere_pago).length
   const precioDesde = serviciosConPrecio.length
     ? Math.min(...serviciosConPrecio.map((servicio) => Number(servicio.precio)))
     : null
@@ -56,16 +103,17 @@ export default function Landing() {
     <div className="min-h-screen bg-bg pb-24">
       {/* Header del negocio */}
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-accent/10 to-transparent pointer-events-none" />
-        <div className="max-w-lg mx-auto px-4 pt-10 pb-8">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 bg-surface border border-border rounded-2xl flex items-center justify-center text-3xl">
+        <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-accent/10 to-transparent pointer-events-none" />
+        <div className="max-w-lg mx-auto px-4 pt-8 pb-8">
+          <div className="flex items-start gap-4 mb-6">
+            <div className="w-16 h-16 bg-surface border border-border rounded-2xl flex items-center justify-center text-3xl flex-shrink-0">
               {negocio.logo_url
                 ? <img src={negocio.logo_url} alt={negocio.nombre} className="w-12 h-12 object-cover rounded-xl" />
                 : icono
               }
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-mono text-accent uppercase tracking-widest mb-1">Agenda online</p>
               <h1 className="text-2xl font-semibold text-white">{negocio.nombre}</h1>
               <p className="text-sm text-muted">{tipoLabel}</p>
             </div>
@@ -76,29 +124,33 @@ export default function Landing() {
           )}
 
           <div className="grid grid-cols-3 gap-2 mb-6">
-            <div className="bg-surface border border-border rounded-lg px-3 py-3">
-              <p className="text-lg font-mono text-white">{servicios.length}</p>
-              <p className="text-xs text-muted">servicios</p>
-            </div>
-            <div className="bg-surface border border-border rounded-lg px-3 py-3">
-              <p className="text-lg font-mono text-white">{precioDesde ? `$${precioDesde.toLocaleString('es-AR')}` : '-'}</p>
-              <p className="text-xs text-muted">desde</p>
-            </div>
-            <div className="bg-surface border border-border rounded-lg px-3 py-3">
-              <p className="text-lg font-mono text-white">24h</p>
-              <p className="text-xs text-muted">online</p>
-            </div>
+            <Stat value={servicios.length} label="servicios" />
+            <Stat value={precioDesde ? `$${precioDesde.toLocaleString('es-AR')}` : '-'} label="desde" />
+            <Stat value={serviciosConPago > 0 ? 'MP' : '24h'} label={serviciosConPago > 0 ? 'pagos' : 'online'} />
           </div>
 
-          <Button onClick={() => handleReservar()} disabled={servicios.length === 0} className="w-full py-3 text-base">
-            Reservar turno
-          </Button>
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <Button onClick={() => handleReservar()} disabled={servicios.length === 0} className="py-3 text-base">
+              Reservar turno
+            </Button>
+            <Button variant="ghost" onClick={() => navigate(`/${slug}/mis-turnos`)} className="px-3 py-3 text-sm">
+              Mis turnos
+            </Button>
+          </div>
+          <p className="text-center text-xs text-muted mt-3">
+            Reserva rápida, sin llamadas ni esperas.
+          </p>
         </div>
       </div>
 
       {/* Servicios */}
       <div className="max-w-lg mx-auto px-4 pb-12">
-        <h2 className="text-xs font-mono text-muted uppercase tracking-widest mb-4">Servicios</h2>
+        <div className="flex items-end justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-xs font-mono text-muted uppercase tracking-widest">Servicios</h2>
+            <p className="text-sm text-white mt-1">Elegí una opción para ver horarios disponibles.</p>
+          </div>
+        </div>
 
         {servicios.length === 0
           ? (
@@ -113,35 +165,22 @@ export default function Landing() {
           : (
             <div className="flex flex-col gap-3">
               {servicios.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => handleReservar(s)}
-                  className="bg-surface border border-border rounded-xl px-5 py-4 text-left flex items-center justify-between gap-4 hover:border-accent transition-colors"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-white">{s.nombre}</p>
-                    <p className="text-xs text-muted mt-0.5">
-                      {s.duracion_min} min{s.requiere_pago ? ' · pago online' : ''}
-                    </p>
-                  </div>
-                  {s.precio && (
-                    <div className="text-right">
-                      <p className="text-sm font-mono text-accent3">${s.precio.toLocaleString('es-AR')}</p>
-                      <p className="text-xs text-muted">elegir</p>
-                    </div>
-                  )}
-                </button>
+                <ServiceCard key={s.id} servicio={s} onSelect={handleReservar} />
               ))}
             </div>
           )
         }
 
-        <button
-          onClick={() => navigate(`/${slug}/mis-turnos`)}
-          className="mt-8 w-full text-sm text-muted hover:text-white transition-colors text-center"
-        >
-          Ver mis turnos reservados →
-        </button>
+        <div className="mt-8 rounded-xl border border-border bg-surface px-5 py-4">
+          <p className="text-sm text-white font-medium">¿Ya tenés una reserva?</p>
+          <p className="text-xs text-muted mt-1">Consultala con el teléfono y email que usaste al reservar.</p>
+          <button
+            onClick={() => navigate(`/${slug}/mis-turnos`)}
+            className="mt-3 text-sm text-accent hover:underline transition-colors"
+          >
+            Ver mis turnos
+          </button>
+        </div>
       </div>
 
       {servicios.length > 0 && (
