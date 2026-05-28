@@ -4,5 +4,8 @@ verify_jwt = false
 [functions.crear-preferencia-mp]
 verify_jwt = false
 
+[functions.guardar-apariencia]
+verify_jwt = false
+
 [functions.notificar-turno]
 verify_jwt = true

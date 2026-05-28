@@ -34,6 +34,19 @@ function Tag({ children, color = 'purple' }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono border ${colors[color]}`}>{children}</span>
 }
 
+async function getFunctionErrorMessage(error) {
+  const fallback = 'No pudimos guardar los cambios. Intentá de nuevo.'
+
+  if (!error) return fallback
+
+  try {
+    const payload = error.context ? await error.context.json() : null
+    return payload?.error || payload?.message || error.message || fallback
+  } catch {
+    return error.message || fallback
+  }
+}
+
 export default function Configuracion() {
   const navigate = useNavigate()
   const [negocio, setNegocio] = useState(null)
@@ -699,15 +712,21 @@ function TabApariencia({ negocio, setNegocio }) {
       logo_url:       form.logo_url || null,
     }
 
-    const { data, error } = await supabase
-      .from('negocios')
-      .update(updates)
-      .eq('id', negocio.id)
-      .select()
-      .single()
+    const { data, error } = await supabase.functions.invoke('guardar-apariencia', {
+      body: {
+        negocio_id: negocio.id,
+        ...updates,
+      },
+    })
 
     if (error) {
-      setError(error.message)
+      setError(await getFunctionErrorMessage(error))
+      setSaving(false)
+      return
+    }
+
+    if (!data?.negocio) {
+      setError('No pudimos confirmar que la apariencia haya quedado guardada.')
       setSaving(false)
       return
     }
@@ -716,7 +735,7 @@ function TabApariencia({ negocio, setNegocio }) {
     document.documentElement.style.setProperty('--color-bg', updates.color_fondo)
     document.documentElement.style.setProperty('--color-accent', updates.color_primario)
 
-    setNegocio(n => ({ ...n, ...data }))
+    setNegocio(n => ({ ...n, ...data.negocio }))
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
