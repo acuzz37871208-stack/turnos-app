@@ -4,7 +4,10 @@ import { Input, Button } from '../../components/ui'
 export default function StepCliente({ onNext, onBack }) {
   const { cliente, setCliente } = useBookingStore()
 
-  const valid = cliente.nombre.trim() && cliente.telefono.trim() && cliente.email.trim()
+  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cliente.email.trim())
+  const telefonoValido = cliente.telefono.replace(/\D/g, '').length >= 8
+  const nombreValido = cliente.nombre.trim().length >= 2
+  const valid = nombreValido && telefonoValido && emailValido
 
   function handleChange(e) {
     setCliente({ [e.target.name]: e.target.value })
@@ -22,6 +25,7 @@ export default function StepCliente({ onNext, onBack }) {
           value={cliente.nombre}
           onChange={handleChange}
           placeholder="Juan García"
+          error={cliente.nombre && !nombreValido ? 'Ingresá al menos 2 caracteres' : null}
           required
         />
         <Input
@@ -31,6 +35,8 @@ export default function StepCliente({ onNext, onBack }) {
           onChange={handleChange}
           placeholder="2494123456"
           type="tel"
+          inputMode="tel"
+          error={cliente.telefono && !telefonoValido ? 'Ingresá un teléfono válido' : null}
           required
         />
         <Input
@@ -40,6 +46,7 @@ export default function StepCliente({ onNext, onBack }) {
           onChange={handleChange}
           placeholder="juan@mail.com"
           type="email"
+          error={cliente.email && !emailValido ? 'Ingresá un email válido' : null}
           required
         />
         <div className="flex flex-col gap-1.5">

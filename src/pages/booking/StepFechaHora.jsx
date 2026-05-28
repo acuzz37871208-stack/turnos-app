@@ -3,14 +3,33 @@ import { useBookingStore } from '../../store/bookingStore'
 import { useSlots } from '../../hooks/useSlots'
 import { Button, Spinner } from '../../components/ui'
 
+function fechaLocalISO(date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function sumarDias(date, days) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function formatearDia(fecha) {
+  return new Date(`${fecha}T12:00:00`).toLocaleDateString('es-AR', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })
+}
+
 function getMinDate() {
-  return new Date().toISOString().split('T')[0]
+  return fechaLocalISO()
 }
 
 function getMaxDate() {
-  const d = new Date()
-  d.setDate(d.getDate() + 60)
-  return d.toISOString().split('T')[0]
+  return fechaLocalISO(sumarDias(new Date(), 60))
 }
 
 export default function StepFechaHora({ negocio, onNext, onBack }) {
@@ -19,10 +38,12 @@ export default function StepFechaHora({ negocio, onNext, onBack }) {
 
   const profId = profesional?.id === 'cualquiera' ? null : profesional?.id
   const { slots, loading } = useSlots(negocio?.id, profId, servicio?.id, localFecha)
+  const fechasRapidas = [0, 1, 2, 3].map((dias) => fechaLocalISO(sumarDias(new Date(), dias)))
+  const disponibles = slots.filter((slot) => slot.disponible).length
 
-  function handleFecha(e) {
-    setLocalFecha(e.target.value)
-    setFecha(e.target.value)
+  function seleccionarFecha(value) {
+    setLocalFecha(value)
+    setFecha(value)
     setHora(null)
   }
 
@@ -37,27 +58,48 @@ export default function StepFechaHora({ negocio, onNext, onBack }) {
         <input
           type="date"
           value={localFecha}
-          onChange={handleFecha}
+          onChange={(e) => seleccionarFecha(e.target.value)}
           min={getMinDate()}
           max={getMaxDate()}
           className="w-full bg-surface border border-border rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
         />
+        <div className="grid grid-cols-4 gap-2 mt-3">
+          {fechasRapidas.map((f, index) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => seleccionarFecha(f)}
+              className={`border rounded-lg px-2 py-2 text-xs transition-colors ${
+                localFecha === f
+                  ? 'border-accent bg-accent bg-opacity-10 text-white'
+                  : 'border-border text-muted hover:text-white hover:border-muted'
+              }`}
+            >
+              {index === 0 ? 'Hoy' : index === 1 ? 'Mañana' : formatearDia(f)}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Slots */}
       {localFecha && (
         <div className="mb-8">
-          <label className="block text-sm text-muted mb-3">Horario</label>
+          <div className="flex items-center justify-between mb-3">
+            <label className="block text-sm text-muted">Horario</label>
+            {!loading && slots.length > 0 && (
+              <span className="text-xs text-muted">{disponibles} disponible{disponibles !== 1 ? 's' : ''}</span>
+            )}
+          </div>
 
           {loading ? (
             <div className="flex justify-center py-8"><Spinner /></div>
           ) : slots.length === 0 ? (
-            <div className="text-center py-8 text-muted text-sm">
-              <p className="text-2xl mb-2">😔</p>
-              <p>No hay horarios disponibles para este día</p>
+            <div className="bg-surface border border-border rounded-xl px-5 py-8 text-center text-sm">
+              <p className="text-white font-medium">No hay horarios disponibles</p>
+              <p className="text-muted mt-2">Probá con otra fecha cercana.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {slots.map(slot => (
                 <button
                   key={slot.hora}

@@ -11,7 +11,9 @@ export default function StepServicio({ servicios, onNext, onBack }) {
   return (
     <div>
       <h2 className="text-xl font-semibold text-white mb-1">¿Qué servicio necesitás?</h2>
-      <p className="text-sm text-muted mb-6">Seleccioná uno para continuar</p>
+      <p className="text-sm text-muted mb-6">
+        {servicio ? 'Servicio seleccionado. Podés continuar o elegir otro.' : 'Seleccioná uno para continuar'}
+      </p>
 
       {servicios.length === 0
         ? <EmptyState icon="🛠️" title="No hay servicios disponibles" />
