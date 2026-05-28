@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../services/supabase'
-import { Input, Button, Spinner, StepIndicator } from '../../components/ui'
+import { Input, Button, Spinner, StepIndicator, Alert } from '../../components/ui'
 
 const STEPS = ['Cuenta', 'Negocio', 'Horarios', 'Servicios', '¡Listo!']
 const TIPOS = ['clinica', 'peluqueria', 'cancha', 'otro']
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const STEP_COPY = [
-  { title: 'Creá tu cuenta', description: 'Usala para administrar tu agenda y tus turnos.' },
-  { title: 'Datos del negocio', description: 'Definí cómo van a encontrarte tus clientes.' },
-  { title: 'Horarios de atención', description: 'Estos días y horarios se usan para calcular disponibilidad.' },
-  { title: 'Servicios', description: 'Cargá lo que ofrecés. Después podés editarlo desde Configuración.' },
-  { title: 'Agenda publicada', description: 'Ya podés compartir tu link y recibir reservas.' },
+  { title: 'Creá tu cuenta', description: 'Tu panel queda protegido y listo para administrar reservas.' },
+  { title: 'Datos del negocio', description: 'Definí el nombre, rubro y link público de tu agenda.' },
+  { title: 'Horarios de atención', description: 'Cargá una disponibilidad inicial para empezar a vender.' },
+  { title: 'Servicios', description: 'Publicá al menos un servicio reservable.' },
+  { title: 'Agenda publicada', description: 'Tu link ya está listo para compartir con clientes.' },
 ]
 
 function errorMessage(error) {
@@ -25,6 +25,37 @@ function errorMessage(error) {
 function horaAMinutos(hora) {
   const [horas, minutos] = hora.split(':').map(Number)
   return horas * 60 + minutos
+}
+
+function ErrorAlert({ children }) {
+  if (!children) return null
+  return <Alert tone="danger">{children}</Alert>
+}
+
+function OnboardingSummary({ step }) {
+  const progress = Math.round(((step + 1) / STEPS.length) * 100)
+
+  return (
+    <div className="bg-surface border border-border rounded-xl p-4 mb-6">
+      <div className="flex items-center justify-between gap-4 mb-3">
+        <div>
+          <p className="text-xs font-mono text-muted uppercase tracking-widest">Alta guiada</p>
+          <p className="text-sm text-white mt-1">Tu agenda queda online al finalizar.</p>
+        </div>
+        <span className="text-sm font-mono text-accent">{progress}%</span>
+      </div>
+      <div className="h-2 rounded-full bg-bg overflow-hidden">
+        <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${progress}%` }} />
+      </div>
+      <div className="grid grid-cols-3 gap-2 mt-4">
+        {['Sin tarjeta', 'Link propio', 'Panel admin'].map((item) => (
+          <div key={item} className="rounded-lg border border-border px-2 py-2 text-center">
+            <p className="text-[11px] text-muted">{item}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export default function Onboarding() {
@@ -220,16 +251,17 @@ export default function Onboarding() {
   const urlBase = window.location.origin
 
   return (
-    <div className="min-h-screen bg-bg px-4 py-10 max-w-lg mx-auto page-enter">
+    <div className="min-h-screen bg-bg px-4 py-8 max-w-2xl mx-auto page-enter sm:py-10">
       <div className="mb-8">
         <div className="w-10 h-10 bg-accent bg-opacity-15 border border-accent border-opacity-30 rounded-xl flex items-center justify-center text-accent text-lg mb-4">⚡</div>
-        <h1 className="text-xl font-semibold text-white">Registrá tu negocio</h1>
-        <p className="text-sm text-muted">Paso {step + 1} de {STEPS.length} · {currentCopy.description}</p>
+        <h1 className="text-2xl font-semibold text-white">Tu agenda online en minutos</h1>
+        <p className="text-sm text-muted mt-1">Paso {step + 1} de {STEPS.length} · {currentCopy.description}</p>
       </div>
 
+      <OnboardingSummary step={step} />
       <StepIndicator steps={STEPS} current={step} />
 
-      <div key={step} className="page-enter">
+      <div key={step} className="page-enter bg-bg">
         {step === 0 && (
           session ? (
             <div className="flex flex-col gap-4">
@@ -238,7 +270,7 @@ export default function Onboarding() {
                 <p className="text-sm text-muted mb-1">Vas a registrar el negocio con</p>
                 <p className="text-white text-sm break-all">{session.user.email}</p>
               </div>
-              {error && <p className="text-sm text-accent2">{error}</p>}
+              <ErrorAlert>{error}</ErrorAlert>
               <Button type="button" onClick={next} disabled={loading} className="w-full mt-2">
                 Continuar con esta cuenta
               </Button>
@@ -252,7 +284,7 @@ export default function Onboarding() {
               <p className="text-sm text-muted -mt-3">No necesitás tarjeta ni configuración técnica para empezar.</p>
               <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" required />
               <Input label="Contraseña" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="mínimo 8 caracteres" minLength={8} required />
-              {error && <p className="text-sm text-accent2">{error}</p>}
+              <ErrorAlert>{error}</ErrorAlert>
               <Button type="submit" disabled={loading} className="w-full mt-2">
                 {loading ? <Spinner size="sm" /> : 'Continuar'}
               </Button>
@@ -273,10 +305,10 @@ export default function Onboarding() {
               placeholder="Peluquería Luna" required />
             <div>
               <label className="block text-sm text-muted mb-2">Tipo</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {TIPOS.map(t => (
                   <button key={t} type="button" onClick={() => setNegocio(n => ({ ...n, tipo: t }))}
-                    className={`py-2.5 px-4 rounded-lg text-sm capitalize border transition-all
+                    className={`min-h-11 py-2.5 px-4 rounded-lg text-sm capitalize border transition-all
                       ${negocio.tipo === t ? 'border-accent text-white bg-accent bg-opacity-10' : 'border-border text-muted hover:border-muted'}`}>
                     {t}
                   </button>
@@ -292,8 +324,8 @@ export default function Onboarding() {
             <Input label="Teléfono (opcional)" value={negocio.telefono}
               onChange={e => setNegocio(n => ({ ...n, telefono: e.target.value }))}
               placeholder="2494123456" />
-            {error && <p className="text-sm text-accent2">{error}</p>}
-            <div className="flex gap-3 mt-2">
+            <ErrorAlert>{error}</ErrorAlert>
+            <div className="grid grid-cols-2 gap-3 mt-2">
               <Button type="button" variant="ghost" onClick={back}>Volver</Button>
               <Button type="submit" disabled={loading} className="flex-1">
                 {loading ? <Spinner size="sm" /> : 'Continuar'}
@@ -308,23 +340,24 @@ export default function Onboarding() {
             <p className="text-sm text-muted -mt-3">Podés ajustar horarios más específicos después desde el panel.</p>
             <div>
               <label className="block text-sm text-muted mb-2">Días activos</label>
-              <div className="flex gap-2 flex-wrap">
+              <div className="grid grid-cols-7 gap-2">
                 {DIAS.map((d, i) => (
                   <button key={i} type="button" onClick={() => toggleDia(i)}
-                    className={`w-11 py-2 rounded-lg text-sm border transition-all
+                    className={`min-h-11 rounded-lg text-sm border transition-all
                       ${horarios.dias.includes(i) ? 'border-accent text-white bg-accent bg-opacity-10' : 'border-border text-muted'}`}>
                     {d}
                   </button>
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input label="Apertura" type="time" value={horarios.hora_inicio}
                 onChange={e => setHorarios(h => ({ ...h, hora_inicio: e.target.value }))} />
               <Input label="Cierre" type="time" value={horarios.hora_fin}
                 onChange={e => setHorarios(h => ({ ...h, hora_fin: e.target.value }))} />
             </div>
-            <div className="flex gap-3 mt-2">
+            <ErrorAlert>{error}</ErrorAlert>
+            <div className="grid grid-cols-2 gap-3 mt-2">
               <Button type="button" variant="ghost" onClick={back}>Volver</Button>
               <Button type="submit" disabled={loading} className="flex-1">
                 {loading ? <Spinner size="sm" /> : 'Continuar'}
@@ -348,7 +381,7 @@ export default function Onboarding() {
                 </div>
                 <Input placeholder="Nombre (ej: Corte de pelo)" value={s.nombre}
                   onChange={e => setServicios(sv => sv.map((x, j) => j===i ? {...x, nombre: e.target.value} : x))} />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Input label="Duración (min)" type="number" value={s.duracion_min} min={5}
                     onChange={e => setServicios(sv => sv.map((x, j) => j===i ? {...x, duracion_min: e.target.value} : x))} />
                   <Input label="Precio (opcional)" type="number" value={s.precio} placeholder="0"
@@ -369,8 +402,8 @@ export default function Onboarding() {
               className="text-sm text-accent hover:underline text-left">
               + Agregar otro servicio
             </button>
-            {error && <p className="text-sm text-accent2">{error}</p>}
-            <div className="flex gap-3 mt-2">
+            <ErrorAlert>{error}</ErrorAlert>
+            <div className="grid grid-cols-2 gap-3 mt-2">
               <Button type="button" variant="ghost" onClick={back}>Volver</Button>
               <Button type="submit" disabled={loading} className="flex-1">
                 {loading ? <Spinner size="sm" /> : 'Continuar'}
@@ -389,6 +422,13 @@ export default function Onboarding() {
             <div className="bg-surface border border-border rounded-xl px-5 py-4 mb-8">
               <p className="text-xs font-mono text-muted mb-1">Tu URL pública</p>
               <p className="text-accent font-mono text-sm break-all">{urlBase}/{negocioCreado?.slug}</p>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-8 text-left">
+              {['Publicada', 'Editable', 'Compartible'].map((item) => (
+                <div key={item} className="rounded-lg border border-border px-3 py-3">
+                  <p className="text-xs text-muted">{item}</p>
+                </div>
+              ))}
             </div>
             <div className="flex flex-col gap-3">
               <Button onClick={() => window.open(`${urlBase}/${negocioCreado?.slug}`, '_blank', 'noopener,noreferrer')} variant="ghost" className="w-full">

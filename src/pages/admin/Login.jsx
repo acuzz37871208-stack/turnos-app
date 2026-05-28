@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { Input, Button, Spinner } from '../../components/ui'
+import { Input, Button, Spinner, Alert } from '../../components/ui'
 
 export default function AdminLogin() {
   const navigate = useNavigate()
@@ -31,14 +31,22 @@ export default function AdminLogin() {
             ⚡
           </div>
           <h1 className="text-xl font-semibold text-white">Acceso al panel</h1>
-          <p className="text-sm text-muted mt-1">Ingresá con tu cuenta</p>
+          <p className="text-sm text-muted mt-1">Gestioná turnos, horarios, pagos y servicios.</p>
+        </div>
+
+        <div className="bg-surface border border-border rounded-xl px-4 py-3 mb-5">
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {['Reservas', 'Pagos', 'Agenda'].map((item) => (
+              <p key={item} className="text-xs text-muted">{item}</p>
+            ))}
+          </div>
         </div>
 
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" required />
           <Input label="Contraseña" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
 
-          {error && <p className="text-sm text-accent2">{error}</p>}
+          {error && <Alert tone="danger">{error}</Alert>}
 
           <Button type="submit" disabled={loading} className="w-full mt-2">
             {loading ? <Spinner size="sm" /> : 'Ingresar'}
