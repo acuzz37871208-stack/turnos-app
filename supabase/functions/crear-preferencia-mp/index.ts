@@ -9,6 +9,32 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function jsonResponse(payload: Record<string, unknown>, status = 200) {
+  return new Response(
+    JSON.stringify(payload),
+    { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  )
+}
+
+function mercadopagoErrorMessage(mpError: any) {
+  const message = String(mpError?.message || '')
+  const error = String(mpError?.error || '')
+  const causes = Array.isArray(mpError?.cause)
+    ? mpError.cause.map((cause: any) => String(cause?.description || cause?.code || '')).join(' ')
+    : ''
+  const text = `${message} ${error} ${causes}`.toLowerCase()
+
+  if (text.includes('invalid') && text.includes('token')) {
+    return 'MercadoPago rechazó el Access Token. Revisá la conexión de MercadoPago en Configuración.'
+  }
+
+  if (text.includes('unit_price') || text.includes('amount') || text.includes('price')) {
+    return 'MercadoPago rechazó el monto del servicio. Revisá el precio configurado.'
+  }
+
+  return 'MercadoPago no pudo crear el link de pago. Revisá la configuración e intentá nuevamente.'
+}
+
 serve(async (req) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
@@ -26,10 +52,7 @@ serve(async (req) => {
 
     // Validación básica
     if (!turno_id || !negocio_id) {
-      return new Response(
-        JSON.stringify({ error: 'Faltan parámetros requeridos' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return jsonResponse({ error: 'Faltan parámetros requeridos' }, 400)
     }
 
     // Cliente Supabase con service role (para leer el token del negocio)
@@ -46,16 +69,13 @@ serve(async (req) => {
       .single()
 
     if (negErr || !negocio) {
-      return new Response(
-        JSON.stringify({ error: 'Negocio no encontrado' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return jsonResponse({ error: 'Negocio no encontrado' }, 404)
     }
 
     if (!negocio.mp_access_token) {
-      return new Response(
-        JSON.stringify({ error: 'Este negocio no tiene MercadoPago configurado' }),
-        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return jsonResponse(
+        { error: 'Este negocio todavía no tiene MercadoPago configurado. Avisale al negocio para activar los pagos.' },
+        422
       )
     }
 
@@ -66,27 +86,18 @@ serve(async (req) => {
       .single()
 
     if (turnoErr || !turno || turno.negocio_id !== negocio_id) {
-      return new Response(
-        JSON.stringify({ error: 'Turno no encontrado para este negocio' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return jsonResponse({ error: 'Turno no encontrado para este negocio' }, 404)
     }
 
     if (!['pendiente_pago', 'pendiente'].includes(turno.estado)) {
-      return new Response(
-        JSON.stringify({ error: 'Este turno no está pendiente de pago' }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return jsonResponse({ error: 'Este turno ya no está pendiente de pago' }, 409)
     }
 
     const servicio = Array.isArray(turno.servicios) ? turno.servicios[0] : turno.servicios
     const precio = Number(servicio?.precio)
 
     if (!servicio?.nombre || !precio || precio <= 0) {
-      return new Response(
-        JSON.stringify({ error: 'El servicio no tiene un precio válido para cobrar' }),
-        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return jsonResponse({ error: 'El servicio no tiene un precio válido para cobrar' }, 422)
     }
 
     const expirationDate = new Date(Date.now() + 30 * 60 * 1000).toISOString()
@@ -132,9 +143,9 @@ serve(async (req) => {
     if (!mpRes.ok) {
       const mpError = await mpRes.json()
       console.error('MP error:', mpError)
-      return new Response(
-        JSON.stringify({ error: 'Error al crear preferencia en MercadoPago', detail: mpError }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return jsonResponse(
+        { error: mercadopagoErrorMessage(mpError), detail: mpError },
+        502
       )
     }
 
@@ -149,20 +160,14 @@ serve(async (req) => {
       })
       .eq('id', turno_id)
 
-    return new Response(
-      JSON.stringify({
+    return jsonResponse({
         init_point: mpData.init_point,           // producción
         sandbox_init_point: mpData.sandbox_init_point, // testing
         preference_id: mpData.id,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+      })
 
   } catch (err) {
     console.error(err)
-    return new Response(
-      JSON.stringify({ error: 'Error interno del servidor' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return jsonResponse({ error: 'Error interno al iniciar el pago. Intentá nuevamente.' }, 500)
   }
 })

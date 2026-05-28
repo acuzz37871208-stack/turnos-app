@@ -3,6 +3,19 @@ import { useBookingStore } from '../../store/bookingStore'
 import { supabase } from '../../lib/supabase'
 import { Button, Spinner } from '../../components/ui'
 
+async function getFunctionErrorMessage(error) {
+  const fallback = 'No se pudo iniciar el pago. Intentá de nuevo.'
+
+  if (!error) return fallback
+
+  try {
+    const payload = error.context ? await error.context.json() : null
+    return payload?.error || payload?.message || error.message || fallback
+  } catch {
+    return error.message || fallback
+  }
+}
+
 export default function StepPago({ negocio, slug, onBack }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -23,7 +36,7 @@ export default function StepPago({ negocio, slug, onBack }) {
         }
       })
 
-      if (err) throw err
+      if (err) throw new Error(await getFunctionErrorMessage(err))
       if (!data?.init_point) throw new Error(data?.error || 'MercadoPago no devolvió un link de pago')
 
       // Redirigir al checkout de MercadoPago
