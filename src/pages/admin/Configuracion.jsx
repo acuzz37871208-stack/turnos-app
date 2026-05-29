@@ -663,7 +663,7 @@ function TabPagos({ negocio, setNegocio }) {
             <p>1. Entrá a <span className="text-accent">mercadopago.com.ar/developers</span></p>
             <p>2. Creá una aplicación</p>
             <p>3. Copiá el <strong className="text-white">Access Token de producción</strong></p>
-            <p className="pt-1 text-yellow-400">⚠️ Nunca compartas este token con nadie</p>
+            <p className="pt-1 text-yellow-400">Nunca compartas este token con nadie.</p>
           </div>
         </div>
         <div className="flex items-center gap-4 mt-5">

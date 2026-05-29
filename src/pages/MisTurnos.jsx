@@ -3,6 +3,14 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Alert, Button, Input, Badge, Spinner, EmptyState, LoadingBlock } from '../components/ui'
 
+function userErrorMessage(error) {
+  if (!error) return 'No pudimos completar la operación. Intentá nuevamente.'
+  if (error.message?.includes('permission') || error.message?.includes('policy')) {
+    return 'No pudimos validar esos datos. Revisá teléfono y email.'
+  }
+  return 'No pudimos completar la operación. Intentá nuevamente.'
+}
+
 function TurnoCard({ turno, onCancelar }) {
   const fecha = new Date(turno.fecha + 'T12:00:00').toLocaleDateString('es-AR', {
     weekday: 'long', day: 'numeric', month: 'long'
@@ -91,7 +99,7 @@ export default function MisTurnos() {
       setTurnos((data || []).map(mapTurno))
       setBuscado(true)
     } catch (err) {
-      setError(err.message)
+      setError(userErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -108,7 +116,7 @@ export default function MisTurnos() {
       })
 
     if (error) {
-      setError(error.message)
+      setError(userErrorMessage(error))
       return
     }
 
@@ -142,7 +150,7 @@ export default function MisTurnos() {
         setTurnos((data || []).map(mapTurno))
         setBuscado(true)
       } catch (err) {
-        setError(err.message)
+        setError(userErrorMessage(err))
       } finally {
         setLoading(false)
       }

@@ -19,7 +19,14 @@ function errorMessage(error) {
   if (error.code === '23505') return 'Esa URL ya está en uso. Probá con otro nombre.'
   if (error.message?.includes('violates foreign key constraint')) return 'La sesión no está sincronizada. Cerrá sesión y volvé a ingresar.'
   if (error.message?.includes('duplicate key')) return 'Ya existe un registro con esos datos.'
-  return error.message || 'No pudimos guardar los datos. Intentá de nuevo.'
+  return 'No pudimos guardar los datos. Intentá de nuevo.'
+}
+
+function authErrorMessage(error) {
+  if (!error) return 'No pudimos validar la cuenta. Intentá de nuevo.'
+  if (error.message?.toLowerCase().includes('already registered')) return 'Ese email ya tiene una cuenta. Ingresá desde el panel.'
+  if (error.message?.toLowerCase().includes('invalid login')) return 'No pudimos iniciar sesión con esos datos.'
+  return 'No pudimos validar la cuenta. Revisá los datos e intentá de nuevo.'
 }
 
 function horaAMinutos(hora) {
@@ -97,9 +104,9 @@ export default function Onboarding() {
     }
 
     const { error: signUpError } = await supabase.auth.signUp({ email, password })
-    if (signUpError) { setError(signUpError.message); setLoading(false); return }
+    if (signUpError) { setError(authErrorMessage(signUpError)); setLoading(false); return }
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-    if (signInError) { setError(signInError.message); setLoading(false); return }
+    if (signInError) { setError(authErrorMessage(signInError)); setLoading(false); return }
     const { data: { user } } = await supabase.auth.getUser()
     setSession(user ? { user } : null)
     setLoading(false); next()
@@ -438,7 +445,7 @@ export default function Onboarding() {
               <button
                 onClick={() => navigator.clipboard.writeText(`${urlBase}/${negocioCreado?.slug}`)}
                 className="text-sm text-muted hover:text-white transition-colors">
-                📋 Copiar link
+                Copiar link
               </button>
             </div>
           </div>

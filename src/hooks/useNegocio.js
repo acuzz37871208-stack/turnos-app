@@ -34,8 +34,8 @@ export function useNegocio(slug) {
 
         applyBusinessTheme(neg)
 
-      } catch (err) {
-        setError(err.message)
+      } catch {
+        setError('No pudimos cargar esta agenda. Verificá el link e intentá nuevamente.')
       } finally {
         setLoading(false)
       }

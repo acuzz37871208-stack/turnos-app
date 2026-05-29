@@ -10,9 +10,10 @@ async function getFunctionErrorMessage(error) {
 
   try {
     const payload = error.context ? await error.context.json() : null
-    return payload?.error || payload?.message || error.message || fallback
+    if (payload?.error || payload?.message) return fallback
+    return fallback
   } catch {
-    return error.message || fallback
+    return fallback
   }
 }
 
