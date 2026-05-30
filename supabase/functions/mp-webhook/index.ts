@@ -5,10 +5,73 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+function parseSignatureHeader(value: string | null) {
+  if (!value) return {}
+
+  return value.split(',').reduce<Record<string, string>>((acc, item) => {
+    const [key, ...rest] = item.trim().split('=')
+    if (key && rest.length) acc[key] = rest.join('=')
+    return acc
+  }, {})
+}
+
+function bytesToHex(bytes: ArrayBuffer) {
+  return [...new Uint8Array(bytes)]
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+function timingSafeEqual(a: string, b: string) {
+  if (a.length !== b.length) return false
+
+  let diff = 0
+  for (let i = 0; i < a.length; i += 1) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+  return diff === 0
+}
+
+async function hmacSha256Hex(secret: string, message: string) {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+
+  return bytesToHex(await crypto.subtle.sign('HMAC', key, encoder.encode(message)))
+}
+
+async function validateMercadoPagoSignature(req: Request, dataId: string | null) {
+  const secret = Deno.env.get('MP_WEBHOOK_SECRET')
+  if (!secret) return true
+
+  const xRequestId = req.headers.get('x-request-id')
+  const signature = parseSignatureHeader(req.headers.get('x-signature'))
+  const ts = signature.ts
+  const v1 = signature.v1
+
+  if (!dataId || !xRequestId || !ts || !v1) return false
+
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`
+  const expected = await hmacSha256Hex(secret, manifest)
+  return timingSafeEqual(expected, v1)
+}
+
 serve(async (req) => {
   try {
     const url = new URL(req.url)
     const turnoIdFromQuery = url.searchParams.get('turno_id')
+    const querySecret = Deno.env.get('MP_WEBHOOK_QUERY_SECRET')
+    const tokenFromQuery = url.searchParams.get('token')
+
+    if (querySecret && tokenFromQuery !== querySecret) {
+      console.warn('MP webhook rejected: invalid query token')
+      return new Response('unauthorized', { status: 401 })
+    }
+
     const body = await req.json().catch(() => ({}))
 
     // MercadoPago puede enviar "type" o "topic" según el origen de la notificación.
@@ -19,6 +82,12 @@ serve(async (req) => {
 
     const paymentId = body.data?.id || url.searchParams.get('data.id') || url.searchParams.get('id')
     if (!paymentId) return new Response('ok', { status: 200 })
+
+    const validSignature = await validateMercadoPagoSignature(req, String(paymentId))
+    if (!validSignature) {
+      console.warn(`MP webhook rejected: invalid signature for payment ${paymentId}`)
+      return new Response('unauthorized', { status: 401 })
+    }
 
     // Necesitamos el Access Token del negocio para consultar el pago.
     // Como el webhook no sabe de qué negocio es, usamos el turno via external_reference

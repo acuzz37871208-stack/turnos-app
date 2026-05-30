@@ -107,7 +107,13 @@ serve(async (req) => {
 
     const successUrl = `${appUrl}/${negocio.slug}/confirmacion`
     const failureUrl = `${appUrl}/${negocio.slug}/reservar`
-    const webhookUrl = `${supabaseUrl}/functions/v1/mp-webhook?turno_id=${encodeURIComponent(turno_id)}`
+    const webhookSecret = Deno.env.get('MP_WEBHOOK_QUERY_SECRET')
+    const webhookUrl = new URL(`${supabaseUrl}/functions/v1/mp-webhook`)
+    webhookUrl.searchParams.set('turno_id', turno_id)
+
+    if (webhookSecret) {
+      webhookUrl.searchParams.set('token', webhookSecret)
+    }
 
     // Crear preferencia en MercadoPago
     const preferencia = {
@@ -130,7 +136,7 @@ serve(async (req) => {
       },
       auto_return: 'approved',
       external_reference: turno_id,
-      notification_url: webhookUrl,
+      notification_url: webhookUrl.toString(),
       expires: true,
       expiration_date_to: expirationDate,
     }
