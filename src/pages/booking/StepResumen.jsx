@@ -6,6 +6,17 @@ import { Alert, Button, Spinner } from '../../components/ui'
 
 const SIN_PROFESIONAL = ['cancha']
 
+async function getFunctionErrorMessage(error) {
+  const fallback = 'No pudimos crear el turno. Revisá los datos e intentá nuevamente.'
+
+  try {
+    const payload = error?.context ? await error.context.json() : null
+    return payload?.error || fallback
+  } catch {
+    return fallback
+  }
+}
+
 function Row({ label, value }) {
   if (!value) return null
   return (
@@ -39,9 +50,8 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
           ? null
           : profesional?.id
 
-      const { data, error: err } = await supabase
-        .from('turnos')
-        .insert({
+      const { data, error: err } = await supabase.functions.invoke('crear-turno', {
+        body: {
           negocio_id:       negocio.id,
           servicio_id:      servicio.id,
           profesional_id:   profesionalId,
@@ -51,26 +61,23 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
           nota:             cliente.nota || null,
           fecha,
           hora_inicio:      hora,
-          hora_fin:         horaFin,
-          estado:           requierePago ? 'pendiente_pago' : 'pendiente',
-        })
-        .select()
-        .single()
+        },
+      })
 
       if (err) {
-        if (err.code === '23505') {
-          setError('Ese horario acaba de ser reservado por otra persona. Volvé y elegí otro horario.')
-          setLoading(false)
-          return
-        }
-
-        throw err
+        setError(await getFunctionErrorMessage(err))
+        setLoading(false)
+        return
       }
 
-      setTurnoConfirmado(data)
+      if (!data?.turno) {
+        throw new Error(data?.error || 'No pudimos crear el turno.')
+      }
+
+      setTurnoConfirmado(data.turno)
 
       // enviar notificación (no bloquea)
-      enviarNotificacion(data).catch(console.error)
+      enviarNotificacion(data.turno).catch(console.error)
 
       if (requierePago && onNext) {
         onNext()

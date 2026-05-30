@@ -26,7 +26,7 @@ function formatFecha(fecha) {
   })
 }
 
-export default function StepPago({ negocio, slug, onBack }) {
+export default function StepPago({ negocio, onBack }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const { turnoConfirmado, servicio, fecha, hora, cliente } = useBookingStore()
@@ -47,9 +47,6 @@ export default function StepPago({ negocio, slug, onBack }) {
         body: {
           turno_id:    turnoConfirmado.id,
           negocio_id:  negocio.id,
-          success_url: `${window.location.origin}/${slug}/confirmacion`,
-          failure_url: `${window.location.origin}/${slug}/reservar`,
-          notification_url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mp-webhook`,
         }
       })
 

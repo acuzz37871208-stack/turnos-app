@@ -45,9 +45,6 @@ serve(async (req) => {
     const {
       turno_id,
       negocio_id,
-      success_url,
-      failure_url,
-      notification_url,
     } = await req.json()
 
     // Validación básica
@@ -64,7 +61,7 @@ serve(async (req) => {
     // Obtener el Access Token de MercadoPago del negocio
     const { data: negocio, error: negErr } = await supabase
       .from('negocios')
-      .select('mp_access_token, nombre')
+      .select('mp_access_token, nombre, slug')
       .eq('id', negocio_id)
       .single()
 
@@ -101,9 +98,16 @@ serve(async (req) => {
     }
 
     const expirationDate = new Date(Date.now() + 30 * 60 * 1000).toISOString()
-    const webhookUrl = notification_url
-      ? `${notification_url}?turno_id=${encodeURIComponent(turno_id)}`
-      : undefined
+    const appUrl = (Deno.env.get('APP_URL') || Deno.env.get('PUBLIC_SITE_URL') || '').replace(/\/$/, '')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')?.replace(/\/$/, '')
+
+    if (!appUrl || !supabaseUrl) {
+      return jsonResponse({ error: 'Falta configurar APP_URL o SUPABASE_URL para iniciar pagos.' }, 500)
+    }
+
+    const successUrl = `${appUrl}/${negocio.slug}/confirmacion`
+    const failureUrl = `${appUrl}/${negocio.slug}/reservar`
+    const webhookUrl = `${supabaseUrl}/functions/v1/mp-webhook?turno_id=${encodeURIComponent(turno_id)}`
 
     // Crear preferencia en MercadoPago
     const preferencia = {
@@ -120,9 +124,9 @@ serve(async (req) => {
         email: turno.cliente_email || undefined,
       },
       back_urls: {
-        success: `${success_url}?turno_id=${turno_id}&status=approved`,
-        failure: `${failure_url}?turno_id=${turno_id}&status=failure`,
-        pending: `${success_url}?turno_id=${turno_id}&status=pending`,
+        success: `${successUrl}?turno_id=${turno_id}&status=approved`,
+        failure: `${failureUrl}?turno_id=${turno_id}&status=failure`,
+        pending: `${successUrl}?turno_id=${turno_id}&status=pending`,
       },
       auto_return: 'approved',
       external_reference: turno_id,

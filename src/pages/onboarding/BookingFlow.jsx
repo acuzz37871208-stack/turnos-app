@@ -56,14 +56,14 @@ export default function BookingFlow() {
         <StepFechaHora key="f" negocio={negocio} onNext={next} onBack={back} />,
         <StepCliente key="c" onNext={next} onBack={back} />,
         <StepResumen key="r" negocio={negocio} slug={slug} onNext={requierePago ? next : null} onBack={back} />,
-        ...(requierePago ? [<StepPago key="pg" negocio={negocio} slug={slug} onBack={back} />] : []),
+        ...(requierePago ? [<StepPago key="pg" negocio={negocio} onBack={back} />] : []),
       ]
     : [
         <StepServicio key="s" servicios={servicios} onNext={next} onBack={back} />,
         <StepFechaHora key="f" negocio={negocio} onNext={next} onBack={back} />,
         <StepCliente key="c" onNext={next} onBack={back} />,
         <StepResumen key="r" negocio={negocio} slug={slug} onNext={requierePago ? next : null} onBack={back} />,
-        ...(requierePago ? [<StepPago key="pg" negocio={negocio} slug={slug} onBack={back} />] : []),
+        ...(requierePago ? [<StepPago key="pg" negocio={negocio} onBack={back} />] : []),
       ]
 
   if (loading) {

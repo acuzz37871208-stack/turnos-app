@@ -125,18 +125,11 @@ drop policy if exists "turnos_owner_read" on turnos;
 drop policy if exists "turnos_owner_update" on turnos;
 drop policy if exists "turnos_client_cancel" on turnos;
 
-create policy "turnos_insert_public" on turnos
-  for insert with check (true);
-
 create policy "turnos_owner_read" on turnos
   for select using (negocio_id in (select id from negocios where owner_id = auth.uid()));
 
 create policy "turnos_owner_update" on turnos
   for update using (negocio_id in (select id from negocios where owner_id = auth.uid()));
-
-create policy "turnos_client_cancel" on turnos
-  for update using (cliente_telefono is not null)
-  with check (estado = 'cancelado');
 
 grant usage on schema public to anon, authenticated;
 grant select on negocios_public to anon, authenticated;
@@ -144,5 +137,5 @@ grant select on turnos_disponibilidad to anon, authenticated;
 grant execute on function public.liberar_turnos_pago_vencido() to anon;
 grant execute on function public.liberar_turnos_pago_vencido() to authenticated;
 grant select on servicios, profesionales, horarios, horarios_especiales to anon, authenticated;
-grant insert on turnos to anon, authenticated;
+-- La creación y cancelación pública de turnos se hace por Edge Function/RPC segura.
 grant select, insert, update, delete on negocios, servicios, profesionales, horarios, horarios_especiales, turnos to authenticated;
