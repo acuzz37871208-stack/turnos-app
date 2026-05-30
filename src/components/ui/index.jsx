@@ -149,10 +149,12 @@ export function StepIndicator({ steps, current }) {
 }
 
 // ── EmptyState ──────────────────────────────────────────────
-export function EmptyState({ icon = '📭', title, description, action }) {
+export function EmptyState({ icon = 'i', title, description, action }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-      <span className="text-4xl">{icon}</span>
+      <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-bg text-sm font-mono text-accent">
+        {icon}
+      </span>
       <p className="text-white font-medium">{title}</p>
       {description && <p className="text-sm text-muted max-w-xs">{description}</p>}
       {action && <div className="mt-2">{action}</div>}

@@ -46,11 +46,17 @@ export default function Confirmacion() {
       ? 'bg-yellow-400 bg-opacity-15 border-yellow-400 border-opacity-30 text-yellow-400'
       : 'bg-accent3 bg-opacity-15 border-accent3 border-opacity-30 text-accent3'
   const statusIcon = isFailedPayment ? '!' : isPendingPayment ? '…' : '✓'
+  const estadoLabel = isPendingPayment
+    ? 'Pago en revisión'
+    : isFailedPayment
+      ? 'No confirmado'
+      : isPaymentReturn
+        ? 'Pago aprobado'
+        : 'Reserva confirmada'
 
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center page-enter">
-        {/* Ícono de éxito */}
         <div className={`w-20 h-20 border rounded-full flex items-center justify-center text-4xl mx-auto mb-6 ${statusTone}`}>
           {statusIcon}
         </div>
@@ -60,16 +66,38 @@ export default function Confirmacion() {
           {description}
         </p>
 
-        {/* Resumen compacto */}
         <div className="bg-surface border border-border rounded-xl px-5 py-4 mb-8 text-left">
-          <p className="text-xs font-mono text-muted uppercase tracking-widest mb-3">Tu turno</p>
-          <p className="text-white font-medium">{servicio?.nombre}</p>
-          <p className="text-muted text-sm mt-1">{fechaFormateada} · {hora}hs</p>
-          <p className="text-muted text-sm mt-1">{turnoConfirmado.cliente_nombre}</p>
-          <p className="text-muted text-xs mt-2 break-all">{turnoConfirmado.cliente_telefono} · {turnoConfirmado.cliente_email}</p>
-          <div className="mt-3 pt-3 border-t border-border">
-            <p className="text-xs font-mono text-muted">
-              # {turnoConfirmado.id?.slice(0, 8).toUpperCase()}
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <p className="text-xs font-mono text-muted uppercase tracking-widest mb-1">Tu turno</p>
+              <p className="text-white font-medium">{servicio?.nombre || 'Servicio reservado'}</p>
+            </div>
+            <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${statusTone}`}>
+              {estadoLabel}
+            </span>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-start justify-between gap-4">
+              <span className="text-muted">Fecha</span>
+              <span className="text-white text-right">{fechaFormateada || 'Registrada'}</span>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <span className="text-muted">Hora</span>
+              <span className="text-white text-right">{hora ? `${hora} hs` : 'Registrada'}</span>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <span className="text-muted">Cliente</span>
+              <span className="text-white text-right">{turnoConfirmado.cliente_nombre}</span>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <span className="text-muted">Contacto</span>
+              <span className="text-white text-right break-all">{turnoConfirmado.cliente_telefono} · {turnoConfirmado.cliente_email}</span>
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-4">
+            <p className="text-xs text-muted">Código de reserva</p>
+            <p className="text-xs font-mono text-white">
+              {turnoConfirmado.id?.slice(0, 8).toUpperCase()}
             </p>
           </div>
         </div>
@@ -93,7 +121,7 @@ export default function Confirmacion() {
             onClick={() => navigate(`/${slug}/mis-turnos?tel=${encodeURIComponent(turnoConfirmado.cliente_telefono)}&email=${encodeURIComponent(turnoConfirmado.cliente_email)}`)}
             className="w-full"
           >
-            Ver mis turnos
+            Consultar mi reserva
           </Button>
           <Button variant="ghost" onClick={() => navigate(`/${slug}`)} className="w-full">
             Volver al inicio

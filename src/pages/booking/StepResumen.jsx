@@ -131,7 +131,13 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
 
       {requierePago && (
         <Alert tone="warning" title="Pago requerido" className="mb-6">
-          Al continuar, el horario queda reservado por 30 minutos y te llevamos a MercadoPago.
+          Al continuar, el horario queda reservado por 30 minutos y te llevamos al checkout seguro de MercadoPago.
+        </Alert>
+      )}
+
+      {!requierePago && (
+        <Alert tone="info" className="mb-6">
+          Vas a recibir la confirmación con estos datos. También podés consultar o cancelar la reserva desde Mis turnos.
         </Alert>
       )}
 

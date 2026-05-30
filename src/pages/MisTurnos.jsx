@@ -27,7 +27,7 @@ function TurnoCard({ turno, onCancelar }) {
   }[turno.estado]
 
   return (
-    <div className="bg-surface border border-border rounded-xl p-5">
+    <div className="bg-surface border border-border rounded-xl p-5 hover:border-muted transition-colors">
       <div className="flex flex-col gap-3 mb-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="font-medium text-white">{turno.servicios?.nombre}</p>
@@ -172,7 +172,7 @@ export default function MisTurnos() {
       <p className="text-sm text-muted mb-5">Ingresá los datos usados al reservar</p>
 
       <Alert tone="info" className="mb-6">
-        Por seguridad, mostramos tus turnos solo si el teléfono y el email coinciden con la reserva.
+        Para proteger tus datos, solo mostramos reservas cuando teléfono y email coinciden.
       </Alert>
 
       <form onSubmit={buscar} className="flex flex-col gap-3 mb-8">
@@ -204,9 +204,29 @@ export default function MisTurnos() {
 
       {loading && <LoadingBlock title="Buscando turnos" description="Revisando las reservas asociadas a esos datos." />}
 
+      {!loading && !buscado && (
+        <div className="bg-surface border border-border rounded-xl px-5 py-6">
+          <p className="text-sm font-medium text-white">Tus reservas aparecen acá</p>
+          <p className="text-sm text-muted mt-1">
+            Usá el mismo teléfono y email que ingresaste al reservar. Si pagaste con MercadoPago, el estado puede tardar unos minutos en actualizarse.
+          </p>
+          <div className="grid gap-2 mt-4 sm:grid-cols-3">
+            <div className="rounded-lg border border-border bg-bg px-3 py-2">
+              <p className="text-[11px] text-white">Estado actualizado</p>
+            </div>
+            <div className="rounded-lg border border-border bg-bg px-3 py-2">
+              <p className="text-[11px] text-white">Cancelación segura</p>
+            </div>
+            <div className="rounded-lg border border-border bg-bg px-3 py-2">
+              <p className="text-[11px] text-white">Historial privado</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!loading && buscado && (
         turnos.length === 0
-          ? <EmptyState icon="📭" title="No encontramos turnos" description="Verificá que el teléfono y email coincidan con los usados al reservar." action={<Button variant="ghost" onClick={() => navigate(`/${slug}`)} className="text-sm px-3 py-2">Volver a la agenda</Button>} />
+          ? <EmptyState icon="0" title="No encontramos turnos" description="Verificá que el teléfono y email coincidan con los usados al reservar." action={<Button variant="ghost" onClick={() => navigate(`/${slug}`)} className="text-sm px-3 py-2">Volver a la agenda</Button>} />
           : (
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between gap-3">

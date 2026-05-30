@@ -67,7 +67,6 @@ export default function StepPago({ negocio, onBack }) {
       <h2 className="text-xl font-semibold text-white mb-1">Pago del turno</h2>
       <p className="text-sm text-muted mb-6">Tu horario ya está bloqueado. Completá el pago para dejarlo confirmado.</p>
 
-      {/* Resumen del pago */}
       <div className="bg-surface border border-border rounded-xl px-5 py-4 mb-6">
         <div className="flex items-center justify-between gap-4">
           <p className="text-sm text-muted">Servicio</p>
@@ -89,12 +88,23 @@ export default function StepPago({ negocio, onBack }) {
         </div>
       </div>
 
-      {/* Logo MercadoPago */}
-      <div className="flex items-center gap-2 bg-surface border border-border rounded-xl px-5 py-4 mb-6">
-        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">MP</div>
+      <div className="flex items-center gap-3 bg-surface border border-border rounded-xl px-5 py-4 mb-4">
+        <div className="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">MP</div>
         <div>
           <p className="text-sm text-white font-medium">MercadoPago</p>
           <p className="text-xs text-muted">Pago seguro · Tarjeta, débito, efectivo</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="rounded-lg border border-border bg-surface px-2 py-2 text-center">
+          <p className="text-[11px] font-medium text-white">Sin recargos</p>
+        </div>
+        <div className="rounded-lg border border-border bg-surface px-2 py-2 text-center">
+          <p className="text-[11px] font-medium text-white">Checkout MP</p>
+        </div>
+        <div className="rounded-lg border border-border bg-surface px-2 py-2 text-center">
+          <p className="text-[11px] font-medium text-white">Retorno seguro</p>
         </div>
       </div>
 

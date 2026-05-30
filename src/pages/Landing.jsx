@@ -4,10 +4,10 @@ import { useBookingStore } from '../store/bookingStore'
 import { Button, EmptyState, LoadingScreen } from '../components/ui'
 
 const tipoIconos = {
-  clinica: '🏥',
-  peluqueria: '✂️',
-  cancha: '⚽',
-  default: '🏢',
+  clinica: 'CL',
+  peluqueria: 'PL',
+  cancha: 'CN',
+  default: 'AG',
 }
 
 function Stat({ value, label }) {
@@ -20,10 +20,12 @@ function Stat({ value, label }) {
 }
 
 function ServiceCard({ servicio, onSelect }) {
+  const precio = Number(servicio.precio || 0)
+
   return (
     <button
       onClick={() => onSelect(servicio)}
-      className="bg-surface border border-border rounded-xl px-5 py-4 text-left hover:border-accent transition-colors"
+      className="bg-surface border border-border rounded-xl px-5 py-4 text-left hover:border-accent hover:bg-white/[0.02] transition-colors"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
@@ -39,15 +41,15 @@ function ServiceCard({ servicio, onSelect }) {
           </div>
         </div>
         <div className="flex items-end justify-between gap-3 sm:block sm:flex-shrink-0 sm:text-right">
-          {servicio.precio ? (
+          {precio > 0 ? (
             <>
-              <p className="text-sm font-mono text-accent3">${servicio.precio.toLocaleString('es-AR')}</p>
-              <p className="text-xs text-muted">reservar</p>
+              <p className="text-sm font-mono text-accent3">${precio.toLocaleString('es-AR')}</p>
+              <p className="text-xs text-accent">elegir</p>
             </>
           ) : (
             <>
               <p className="text-sm font-mono text-muted">sin cargo</p>
-              <p className="text-xs text-muted">reservar</p>
+              <p className="text-xs text-accent">elegir</p>
             </>
           )}
         </div>
@@ -71,7 +73,7 @@ export default function Landing() {
   if (error || !negocio) return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4">
       <EmptyState
-        icon="🔍"
+        icon="?"
         title="Agenda no encontrada"
         description={`No encontramos una agenda publicada con la URL "${slug}".`}
         action={<Button onClick={() => navigate('/onboarding')} variant="ghost" className="text-sm px-3 py-2">Crear mi agenda</Button>}
@@ -109,7 +111,7 @@ export default function Landing() {
             <div className="w-16 h-16 bg-surface border border-border rounded-2xl flex items-center justify-center text-3xl flex-shrink-0">
               {negocio.logo_url
                 ? <img src={negocio.logo_url} alt={negocio.nombre} className="w-12 h-12 object-cover rounded-xl" />
-                : icono
+                : <span className="font-mono text-sm text-accent">{icono}</span>
               }
             </div>
             <div className="min-w-0 flex-1">
@@ -140,6 +142,21 @@ export default function Landing() {
           <p className="text-center text-xs text-muted mt-3">
             Reserva rápida, sin llamadas ni esperas.
           </p>
+
+          <div className="grid grid-cols-3 gap-2 mt-5">
+            <div className="rounded-lg border border-border bg-surface/70 px-3 py-2 text-center">
+              <p className="text-xs font-medium text-white">Online</p>
+              <p className="text-[11px] text-muted mt-0.5">sin llamadas</p>
+            </div>
+            <div className="rounded-lg border border-border bg-surface/70 px-3 py-2 text-center">
+              <p className="text-xs font-medium text-white">Seguro</p>
+              <p className="text-[11px] text-muted mt-0.5">datos privados</p>
+            </div>
+            <div className="rounded-lg border border-border bg-surface/70 px-3 py-2 text-center">
+              <p className="text-xs font-medium text-white">Flexible</p>
+              <p className="text-[11px] text-muted mt-0.5">consultable</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -156,7 +173,7 @@ export default function Landing() {
           ? (
             <div className="bg-surface border border-border rounded-xl px-5 py-8">
               <EmptyState
-                icon="🛠️"
+                icon="..."
                 title="Agenda en preparación"
                 description="Este negocio todavía no publicó servicios para reservar."
               />
