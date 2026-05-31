@@ -51,7 +51,7 @@ async function getFunctionErrorMessage(error) {
 export default function Configuracion() {
   const navigate = useNavigate()
   const [negocio, setNegocio] = useState(null)
-  const [checklist, setChecklist] = useState({ servicios: 0, profesionales: 0, horarios: 0 })
+  const [checklist, setChecklist] = useState({ servicios: 0, serviciosConPago: 0, profesionales: 0, horarios: 0 })
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('general')
   const [publishSaving, setPublishSaving] = useState(false)
@@ -59,7 +59,7 @@ export default function Configuracion() {
 
   const loadChecklist = useCallback(async (negocioId) => {
     const [{ data: servicios }, { data: profesionales }] = await Promise.all([
-      supabase.from('servicios').select('id').eq('negocio_id', negocioId).eq('activo', true),
+      supabase.from('servicios').select('id, requiere_pago').eq('negocio_id', negocioId).eq('activo', true),
       supabase.from('profesionales').select('id').eq('negocio_id', negocioId).eq('activo', true),
     ])
 
@@ -70,6 +70,7 @@ export default function Configuracion() {
 
     setChecklist({
       servicios: servicios?.length || 0,
+      serviciosConPago: (servicios || []).filter((servicio) => servicio.requiere_pago).length,
       profesionales: profesionales?.length || 0,
       horarios: horarios?.length || 0,
     })
@@ -90,7 +91,8 @@ export default function Configuracion() {
   if (loading) return <LoadingScreen title="Cargando configuración" description="Buscando los datos de tu agenda." />
 
   const publicUrl = `${window.location.origin}/${negocio?.slug}`
-  const readyToPublish = checklist.servicios > 0 && checklist.profesionales > 0 && checklist.horarios > 0
+  const paymentReady = checklist.serviciosConPago === 0 || Boolean(negocio?.mp_access_token)
+  const readyToPublish = checklist.servicios > 0 && checklist.profesionales > 0 && checklist.horarios > 0 && paymentReady
 
   async function togglePublicacion() {
     if (!negocio || (!negocio.activo && !readyToPublish)) return
@@ -157,7 +159,7 @@ export default function Configuracion() {
         />
 
         {activeTab === 'general'   && <TabGeneral   negocio={negocio} setNegocio={setNegocio} publicUrl={publicUrl} />}
-        {activeTab === 'servicios' && <TabServicios  negocio={negocio} onChange={() => loadChecklist(negocio.id)} />}
+        {activeTab === 'servicios' && <TabServicios  negocio={negocio} onChange={() => loadChecklist(negocio.id)} onOpenPayments={() => setActiveTab('pagos')} />}
         {activeTab === 'equipo'    && <TabEquipo     negocio={negocio} onChange={() => loadChecklist(negocio.id)} />}
         {activeTab === 'horarios'  && <TabHorarios   negocio={negocio} onChange={() => loadChecklist(negocio.id)} />}
         {activeTab === 'pagos'      && <TabPagos      negocio={negocio} setNegocio={setNegocio} />}
@@ -178,13 +180,18 @@ function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, 
     { id: 'servicios', label: 'Servicios', value: checklist.servicios, ready: checklist.servicios > 0, tab: 'servicios' },
     { id: 'equipo', label: equipoLabel, value: checklist.profesionales, ready: checklist.profesionales > 0, tab: 'equipo' },
     { id: 'horarios', label: 'Horarios', value: checklist.horarios, ready: checklist.horarios > 0, tab: 'horarios' },
+    ...(checklist.serviciosConPago > 0
+      ? [{ id: 'pagos', label: 'MercadoPago', value: negocio?.mp_access_token ? 'Conectado' : 'Requerido', ready: Boolean(negocio?.mp_access_token), tab: 'pagos' }]
+      : []),
   ]
   const readyCount = requiredItems.filter((item) => item.ready).length
   const nextStep = requiredItems.find((item) => !item.ready)
 
   const items = [
     ...requiredItems,
-    { label: 'MercadoPago', value: negocio?.mp_access_token ? 'Conectado' : 'Opcional', ready: true },
+    ...(checklist.serviciosConPago === 0
+      ? [{ label: 'MercadoPago', value: negocio?.mp_access_token ? 'Conectado' : 'Opcional', ready: true }]
+      : []),
   ]
 
   return (
@@ -239,7 +246,11 @@ function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, 
               <Tag color={item.ready ? 'green' : 'red'}>{item.value}</Tag>
             </div>
             {!item.ready && (
-              <p className="text-xs text-muted mt-1">Necesario para recibir reservas sin fricción.</p>
+              <p className="text-xs text-muted mt-1">
+                {item.id === 'pagos'
+                  ? 'Necesario porque hay servicios que requieren pago online.'
+                  : 'Necesario para recibir reservas sin fricción.'}
+              </p>
             )}
           </div>
         ))}
@@ -300,7 +311,7 @@ function TabGeneral({ negocio, setNegocio, publicUrl }) {
   )
 }
 
-function TabServicios({ negocio, onChange }) {
+function TabServicios({ negocio, onChange, onOpenPayments }) {
   const [servicios, setServicios] = useState([])
   const [loading, setLoading] = useState(true)
   const [editando, setEditando] = useState(null)
@@ -327,13 +338,24 @@ function TabServicios({ negocio, onChange }) {
   return (
     <Section title="Servicios" description="Lo que ofrecés a tus clientes"
       action={<Button onClick={() => { setNuevo(true); setEditando(null) }} className="w-full text-sm px-3 py-2 sm:w-auto">+ Agregar</Button>}>
-      {nuevo && <FormServicio negocioId={negocio.id} onSave={() => { setNuevo(false); fetchServicios(); onChange?.() }} onCancel={() => setNuevo(false)} />}
+      {!negocio?.mp_access_token && (
+        <div className="mb-4 rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-4 py-3">
+          <p className="text-sm font-medium text-yellow-400">Pagos online desactivados</p>
+          <p className="text-xs text-muted mt-1">
+            Podés cargar precios, pero para exigir pago online primero conectá MercadoPago.
+          </p>
+          <button type="button" onClick={onOpenPayments} className="mt-2 text-xs text-yellow-400 hover:underline">
+            Conectar MercadoPago
+          </button>
+        </div>
+      )}
+      {nuevo && <FormServicio negocio={negocio} onSave={() => { setNuevo(false); fetchServicios(); onChange?.() }} onCancel={() => setNuevo(false)} />}
       {servicios.length === 0 && !nuevo ? (
         <EmptyState title="Todavía no hay servicios" description="Agregá el primer servicio para que tus clientes puedan reservar." action={<Button onClick={() => setNuevo(true)} className="text-sm px-3 py-2">Agregar servicio</Button>} />
       ) : (
         <div className="flex flex-col gap-3 mt-4">
           {servicios.map(s => editando === s.id
-            ? <FormServicio key={s.id} negocioId={negocio.id} servicio={s} onSave={() => { setEditando(null); fetchServicios(); onChange?.() }} onCancel={() => setEditando(null)} />
+            ? <FormServicio key={s.id} negocio={negocio} servicio={s} onSave={() => { setEditando(null); fetchServicios(); onChange?.() }} onCancel={() => setEditando(null)} />
             : (
               <div key={s.id} className="bg-surface border border-border rounded-xl px-5 py-4">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -360,13 +382,22 @@ function TabServicios({ negocio, onChange }) {
   )
 }
 
-function FormServicio({ negocioId, servicio, onSave, onCancel }) {
+function FormServicio({ negocio, servicio, onSave, onCancel }) {
   const [form, setForm] = useState(servicio || { nombre: '', duracion_min: 30, precio: '', requiere_pago: false, descripcion: '' })
   const [saving, setSaving] = useState(false)
+  const pagosActivos = Boolean(negocio?.mp_access_token)
 
   async function guardar(e) {
     e.preventDefault(); setSaving(true)
-    const data = { negocio_id: negocioId, nombre: form.nombre, descripcion: form.descripcion || null, duracion_min: Number(form.duracion_min), precio: form.precio ? Number(form.precio) : null, requiere_pago: form.requiere_pago, activo: true }
+    const data = {
+      negocio_id: negocio.id,
+      nombre: form.nombre,
+      descripcion: form.descripcion || null,
+      duracion_min: Number(form.duracion_min),
+      precio: form.precio ? Number(form.precio) : null,
+      requiere_pago: pagosActivos ? form.requiere_pago : false,
+      activo: true,
+    }
     if (servicio?.id) { await supabase.from('servicios').update(data).eq('id', servicio.id) }
     else { await supabase.from('servicios').insert(data) }
     setSaving(false); onSave()
@@ -381,11 +412,16 @@ function FormServicio({ negocioId, servicio, onSave, onCancel }) {
         <Input label="Duración (min)" type="number" min={5} value={form.duracion_min} onChange={e => setForm(f => ({ ...f, duracion_min: e.target.value }))} />
         <Input label="Precio (opcional)" type="number" value={form.precio || ''} placeholder="0" onChange={e => setForm(f => ({ ...f, precio: e.target.value }))} />
       </div>
-      {form.precio && (
+      {form.precio && pagosActivos && (
         <label className="flex items-center gap-2 text-sm text-muted cursor-pointer">
           <input type="checkbox" checked={form.requiere_pago} onChange={e => setForm(f => ({ ...f, requiere_pago: e.target.checked }))} className="accent-purple-500" />
           Requiere pago para confirmar
         </label>
+      )}
+      {form.precio && !pagosActivos && (
+        <p className="rounded-lg border border-border bg-bg px-3 py-2 text-xs text-muted">
+          El precio se mostrará en la agenda. Para exigir pago online, conectá MercadoPago en la pestaña Pagos.
+        </p>
       )}
       <div className="grid grid-cols-2 gap-2 mt-1">
         <Button type="button" variant="ghost" onClick={onCancel} className="text-sm px-3 py-2">Cancelar</Button>
