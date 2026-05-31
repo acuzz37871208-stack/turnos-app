@@ -5,6 +5,18 @@ import { Input, Button, Spinner, StepIndicator, Alert } from '../../components/u
 
 const STEPS = ['Cuenta', 'Negocio', 'Horarios', 'Servicios', '¡Listo!']
 const TIPOS = ['clinica', 'peluqueria', 'cancha', 'otro']
+const TIPO_LABELS = {
+  clinica: 'Clínica',
+  peluqueria: 'Peluquería',
+  cancha: 'Cancha',
+  otro: 'Otro',
+}
+const RESOURCE_LABELS = {
+  clinica: 'Profesional',
+  peluqueria: 'Profesional',
+  cancha: 'Cancha',
+  otro: 'Recurso',
+}
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const STEP_COPY = [
   { title: 'Creá tu cuenta', description: 'Tu panel queda protegido y listo para administrar reservas.' },
@@ -41,6 +53,11 @@ function ErrorAlert({ children }) {
 
 function OnboardingSummary({ step }) {
   const progress = Math.round(((step + 1) / STEPS.length) * 100)
+  const items = [
+    { label: 'Sin tarjeta', ready: step >= 0 },
+    { label: 'Link propio', ready: step >= 1 },
+    { label: 'Panel admin', ready: step >= 4 },
+  ]
 
   return (
     <div className="bg-surface border border-border rounded-xl p-4 mb-6">
@@ -55,9 +72,9 @@ function OnboardingSummary({ step }) {
         <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${progress}%` }} />
       </div>
       <div className="grid grid-cols-3 gap-2 mt-4">
-        {['Sin tarjeta', 'Link propio', 'Panel admin'].map((item) => (
-          <div key={item} className="rounded-lg border border-border px-2 py-2 text-center">
-            <p className="text-[11px] text-muted">{item}</p>
+        {items.map((item) => (
+          <div key={item.label} className={`rounded-lg border px-2 py-2 text-center ${item.ready ? 'border-accent/40 bg-accent/10' : 'border-border'}`}>
+            <p className={`text-[11px] ${item.ready ? 'text-white' : 'text-muted'}`}>{item.label}</p>
           </div>
         ))}
       </div>
@@ -78,6 +95,7 @@ export default function Onboarding() {
   const [servicios, setServicios] = useState([{ nombre: '', duracion_min: 30, precio: '', requiere_pago: false }])
   const [negocioCreado, setNegocioCreado] = useState(null)
   const currentCopy = STEP_COPY[step]
+  const resourceLabel = RESOURCE_LABELS[negocio.tipo] || 'Recurso'
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user }, error }) => {
@@ -148,7 +166,12 @@ export default function Onboarding() {
     }
 
     const { data, error } = await supabase.from('negocios')
-      .insert({ ...negocio, owner_id: user.id, activo: false })
+      .insert({
+        ...negocio,
+        label_profesional: RESOURCE_LABELS[negocio.tipo] || 'Recurso',
+        owner_id: user.id,
+        activo: false,
+      })
       .select().single()
     if (error) { setError(errorMessage(error)); setLoading(false); return }
     setNegocioCreado(data)
@@ -180,7 +203,7 @@ export default function Onboarding() {
 
     try {
       const { data: prof, error: profError } = await supabase.from('profesionales')
-        .insert({ negocio_id: negocioCreado.id, nombre: 'Equipo', activo: true })
+        .insert({ negocio_id: negocioCreado.id, nombre: `${RESOURCE_LABELS[negocioCreado.tipo] || 'Recurso'} 1`, activo: true })
         .select().single()
 
       if (profError) throw profError
@@ -216,7 +239,7 @@ export default function Onboarding() {
       negocio_id: negocioCreado.id, nombre: s.nombre,
       duracion_min: Number(s.duracion_min),
       precio: s.precio ? Number(s.precio) : null,
-      requiere_pago: s.requiere_pago, activo: true,
+      requiere_pago: false, activo: true,
     }))
 
     if (rows.length === 0) {
@@ -260,7 +283,7 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen bg-bg px-4 py-8 max-w-2xl mx-auto page-enter sm:py-10">
       <div className="mb-8">
-        <div className="w-10 h-10 bg-accent bg-opacity-15 border border-accent border-opacity-30 rounded-xl flex items-center justify-center text-accent text-lg mb-4">⚡</div>
+        <div className="w-10 h-10 bg-accent bg-opacity-15 border border-accent border-opacity-30 rounded-xl flex items-center justify-center text-accent text-sm font-mono mb-4">ON</div>
         <h1 className="text-2xl font-semibold text-white">Tu agenda online en minutos</h1>
         <p className="text-sm text-muted mt-1">Paso {step + 1} de {STEPS.length} · {currentCopy.description}</p>
       </div>
@@ -315,9 +338,9 @@ export default function Onboarding() {
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {TIPOS.map(t => (
                   <button key={t} type="button" onClick={() => setNegocio(n => ({ ...n, tipo: t }))}
-                    className={`min-h-11 py-2.5 px-4 rounded-lg text-sm capitalize border transition-all
+                    className={`min-h-11 py-2.5 px-4 rounded-lg text-sm border transition-all
                       ${negocio.tipo === t ? 'border-accent text-white bg-accent bg-opacity-10' : 'border-border text-muted hover:border-muted'}`}>
-                    {t}
+                    {TIPO_LABELS[t]}
                   </button>
                 ))}
               </div>
@@ -331,6 +354,16 @@ export default function Onboarding() {
             <Input label="Teléfono (opcional)" value={negocio.telefono}
               onChange={e => setNegocio(n => ({ ...n, telefono: e.target.value }))}
               placeholder="2494123456" />
+            <div className="bg-surface border border-border rounded-xl px-4 py-3">
+              <p className="text-xs font-mono text-muted uppercase tracking-widest mb-2">Vista previa</p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-white">{negocio.nombre || 'Nombre del negocio'}</p>
+                  <p className="text-xs text-muted mt-0.5">{TIPO_LABELS[negocio.tipo]} · recurso: {resourceLabel}</p>
+                </div>
+                <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-1 text-[11px] text-accent">link público</span>
+              </div>
+            </div>
             <ErrorAlert>{error}</ErrorAlert>
             <div className="grid grid-cols-2 gap-3 mt-2">
               <Button type="button" variant="ghost" onClick={back}>Volver</Button>
@@ -345,6 +378,9 @@ export default function Onboarding() {
           <form onSubmit={guardarHorarios} className="flex flex-col gap-5">
             <h2 className="text-lg font-medium text-white mb-1">{currentCopy.title}</h2>
             <p className="text-sm text-muted -mt-3">Podés ajustar horarios más específicos después desde el panel.</p>
+            <Alert tone="info">
+              Vamos a crear un {resourceLabel.toLowerCase()} inicial para que ya puedas recibir reservas. Luego podés agregar más desde Configuración.
+            </Alert>
             <div>
               <label className="block text-sm text-muted mb-2">Días activos</label>
               <div className="grid grid-cols-7 gap-2">
@@ -377,6 +413,9 @@ export default function Onboarding() {
           <form onSubmit={guardarServicios} className="flex flex-col gap-4">
             <h2 className="text-lg font-medium text-white mb-1">{currentCopy.title}</h2>
             <p className="text-sm text-muted -mt-3">El primer servicio alcanza para publicar. Luego podés sumar más.</p>
+            <Alert tone="info">
+              Si cargás un precio, se muestra en la agenda. El cobro online se activa después conectando MercadoPago desde el panel.
+            </Alert>
             {servicios.map((s, i) => (
               <div key={i} className="bg-surface border border-border rounded-xl p-4 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
@@ -394,14 +433,6 @@ export default function Onboarding() {
                   <Input label="Precio (opcional)" type="number" value={s.precio} placeholder="0"
                     onChange={e => setServicios(sv => sv.map((x, j) => j===i ? {...x, precio: e.target.value} : x))} />
                 </div>
-                {s.precio && (
-                  <label className="flex items-center gap-2 text-sm text-muted cursor-pointer">
-                    <input type="checkbox" checked={s.requiere_pago}
-                      onChange={e => setServicios(sv => sv.map((x, j) => j===i ? {...x, requiere_pago: e.target.checked} : x))}
-                      className="accent-purple-500" />
-                    Requiere pago para confirmar el turno
-                  </label>
-                )}
               </div>
             ))}
             <button type="button"
@@ -421,8 +452,8 @@ export default function Onboarding() {
 
         {step === 4 && (
           <div className="text-center py-4 page-enter">
-            <div className="w-20 h-20 bg-accent3 bg-opacity-15 border border-accent3 border-opacity-30 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
-              🎉
+            <div className="w-20 h-20 bg-accent3 bg-opacity-15 border border-accent3 border-opacity-30 rounded-full flex items-center justify-center text-2xl font-mono text-accent3 mx-auto mb-6">
+              OK
             </div>
             <h2 className="text-2xl font-semibold text-white mb-2">{currentCopy.title}</h2>
             <p className="text-muted text-sm mb-6">Compartí este link con tus clientes o probalo como si fueras uno de ellos.</p>
@@ -433,7 +464,7 @@ export default function Onboarding() {
             <div className="grid grid-cols-3 gap-2 mb-8 text-left">
               {['Publicada', 'Editable', 'Compartible'].map((item) => (
                 <div key={item} className="rounded-lg border border-border px-3 py-3">
-                  <p className="text-xs text-muted">{item}</p>
+                  <p className="text-xs text-white">{item}</p>
                 </div>
               ))}
             </div>
