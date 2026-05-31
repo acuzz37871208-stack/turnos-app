@@ -142,21 +142,6 @@ export default function Landing() {
           <p className="text-center text-xs text-muted mt-3">
             Reserva rápida, sin llamadas ni esperas.
           </p>
-
-          <div className="grid grid-cols-3 gap-2 mt-5">
-            <div className="rounded-lg border border-border bg-surface/70 px-3 py-2 text-center">
-              <p className="text-xs font-medium text-white">Online</p>
-              <p className="text-[11px] text-muted mt-0.5">sin llamadas</p>
-            </div>
-            <div className="rounded-lg border border-border bg-surface/70 px-3 py-2 text-center">
-              <p className="text-xs font-medium text-white">Seguro</p>
-              <p className="text-[11px] text-muted mt-0.5">datos privados</p>
-            </div>
-            <div className="rounded-lg border border-border bg-surface/70 px-3 py-2 text-center">
-              <p className="text-xs font-medium text-white">Flexible</p>
-              <p className="text-[11px] text-muted mt-0.5">consultable</p>
-            </div>
-          </div>
         </div>
       </div>
 
