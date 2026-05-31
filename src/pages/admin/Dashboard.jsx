@@ -27,9 +27,9 @@ function formatearFecha(fecha) {
 
 function MetricCard({ label, value, color, hint }) {
   return (
-    <div className="bg-surface border border-border rounded-xl px-4 py-4 flex flex-col gap-1">
-      <span className="text-xs font-mono text-muted uppercase tracking-widest">{label}</span>
-      <span className={`text-3xl font-mono font-bold ${color}`}>{value}</span>
+    <div className="bg-surface border border-border rounded-xl px-3 py-3 flex min-h-24 flex-col justify-between gap-1 sm:px-4 sm:py-4">
+      <span className="text-[11px] font-mono text-muted uppercase tracking-widest leading-tight">{label}</span>
+      <span className={`text-2xl font-mono font-bold sm:text-3xl ${color}`}>{value}</span>
       {hint && <span className="text-xs text-muted">{hint}</span>}
     </div>
   )
@@ -189,28 +189,30 @@ export default function AdminDashboard() {
           </Alert>
         )}
 
-        <div className="grid grid-cols-2 gap-3 mb-6 sm:flex sm:flex-wrap">
+        <div className="mb-6">
           <input
             type="date"
             value={filtroFecha}
             onChange={handleFecha}
-            className="col-span-2 bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-white outline-none focus:border-accent sm:col-span-1"
+            className="w-full bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-white outline-none focus:border-accent sm:w-auto"
           />
-          <button onClick={() => irAFecha(fechaLocalISO())}
-            className="text-sm text-muted hover:text-white border border-border rounded-lg px-4 py-2.5 transition-colors">
-            Hoy
-          </button>
-          <button onClick={() => irAFecha(fechaLocalISO(sumarDias(new Date(), 1)))}
-            className="text-sm text-muted hover:text-white border border-border rounded-lg px-4 py-2.5 transition-colors">
-            Mañana
-          </button>
-          {filtrosEstado.map(filtro => (
-            <button key={filtro.value}
-              onClick={() => setFiltroEstado(filtro.value)}
-              className={`text-sm border rounded-lg px-4 py-2.5 transition-colors ${filtroEstado === filtro.value ? 'border-accent text-white' : 'border-border text-muted hover:text-white'}`}>
-              {filtro.label}
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            <button onClick={() => irAFecha(fechaLocalISO())}
+              className="min-h-10 shrink-0 text-sm text-muted hover:text-white border border-border rounded-lg px-4 py-2.5 transition-colors">
+              Hoy
             </button>
-          ))}
+            <button onClick={() => irAFecha(fechaLocalISO(sumarDias(new Date(), 1)))}
+              className="min-h-10 shrink-0 text-sm text-muted hover:text-white border border-border rounded-lg px-4 py-2.5 transition-colors">
+              Mañana
+            </button>
+            {filtrosEstado.map(filtro => (
+              <button key={filtro.value}
+                onClick={() => setFiltroEstado(filtro.value)}
+                className={`min-h-10 shrink-0 text-sm border rounded-lg px-4 py-2.5 transition-colors ${filtroEstado === filtro.value ? 'border-accent text-white' : 'border-border text-muted hover:text-white'}`}>
+                {filtro.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Lista de turnos */}
@@ -274,11 +276,11 @@ export default function AdminDashboard() {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-1 gap-2 mt-4 pt-3 border-t border-border sm:flex sm:flex-wrap">
+                      <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-border sm:flex sm:flex-wrap">
                         {t.cliente_telefono && (
                           <a
                             href={`tel:${t.cliente_telefono}`}
-                            className="text-xs text-muted border border-border px-3 py-2 rounded-lg hover:text-white hover:border-muted transition text-center"
+                            className="min-h-10 text-xs text-muted border border-border px-3 py-2 rounded-lg hover:text-white hover:border-muted transition text-center"
                           >
                             Llamar
                           </a>
@@ -286,7 +288,7 @@ export default function AdminDashboard() {
                         {t.cliente_email && (
                           <a
                             href={`mailto:${t.cliente_email}`}
-                            className="text-xs text-muted border border-border px-3 py-2 rounded-lg hover:text-white hover:border-muted transition text-center"
+                            className="min-h-10 text-xs text-muted border border-border px-3 py-2 rounded-lg hover:text-white hover:border-muted transition text-center"
                           >
                             Email
                           </a>
@@ -294,7 +296,7 @@ export default function AdminDashboard() {
                         {t.estado === 'pendiente' && (
                           <button
                             onClick={() => cambiarEstado(t.id, 'confirmado')}
-                            className="text-xs text-accent border border-accent border-opacity-30 bg-accent bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition"
+                            className="min-h-10 text-xs text-accent border border-accent border-opacity-30 bg-accent bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition"
                           >
                             Confirmar
                           </button>
@@ -303,7 +305,7 @@ export default function AdminDashboard() {
                         {['pendiente', 'confirmado'].includes(t.estado) && (
                           <button
                             onClick={() => cambiarEstado(t.id, 'atendido')}
-                            className="text-xs text-accent3 border border-accent3 border-opacity-30 bg-accent3 bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition"
+                            className="min-h-10 text-xs text-accent3 border border-accent3 border-opacity-30 bg-accent3 bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition"
                           >
                             Marcar atendido
                           </button>
@@ -312,7 +314,7 @@ export default function AdminDashboard() {
                         {['pendiente', 'pendiente_pago', 'confirmado'].includes(t.estado) && (
                           <button
                             onClick={() => cambiarEstado(t.id, 'cancelado')}
-                            className="text-xs text-accent2 border border-accent2 border-opacity-30 bg-accent2 bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition"
+                            className="min-h-10 text-xs text-accent2 border border-accent2 border-opacity-30 bg-accent2 bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition"
                           >
                             Cancelar
                           </button>

@@ -12,7 +12,7 @@ function needsProfesional(tipo) { return !SIN_PROFESIONAL.includes(tipo) }
 
 function Section({ title, description, children, action }) {
   return (
-    <div className="border-b border-border pb-10 mb-10 last:border-0 last:mb-0">
+    <div className="border-b border-border pb-8 mb-8 last:border-0 last:mb-0 sm:pb-10 sm:mb-10">
       <div className="flex flex-col gap-3 mb-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-white">{title}</h2>
@@ -134,10 +134,10 @@ export default function Configuracion() {
         </div>
       </header>
       <div className="sticky top-0 z-10 border-b border-border bg-bg/95 px-4 backdrop-blur sm:px-6">
-        <div className="mx-auto flex max-w-4xl gap-0 overflow-x-auto">
+        <div className="mx-auto flex max-w-4xl gap-0 overflow-x-auto no-scrollbar">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
-              className={`min-h-11 px-4 py-3 text-sm whitespace-nowrap border-b-2 transition-all ${activeTab === t.id ? 'border-accent text-white' : 'border-transparent text-muted hover:text-white'}`}>
+              className={`min-h-11 shrink-0 px-4 py-3 text-sm whitespace-nowrap border-b-2 transition-all ${activeTab === t.id ? 'border-accent text-white' : 'border-transparent text-muted hover:text-white'}`}>
               {t.label}
             </button>
           ))}
@@ -221,7 +221,7 @@ function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, 
             {publishSaving ? <Spinner size="sm" /> : negocio?.activo ? 'Pausar' : 'Publicar'}
           </Button>
           {nextStep && (
-            <Button type="button" variant="ghost" onClick={() => onOpenTab?.(nextStep.tab)} className="col-span-2 text-sm px-3 py-2 flex-1">
+            <Button type="button" variant="ghost" onClick={() => onOpenTab?.(nextStep.tab)} className="col-span-2 text-sm px-3 py-2 flex-1 whitespace-normal text-center leading-snug">
               Completar {nextStep.label.toLowerCase()}
             </Button>
           )}
@@ -345,10 +345,10 @@ function TabServicios({ negocio, onChange }) {
                     </div>
                     <p className="text-xs text-muted mt-0.5">{s.duracion_min} min{s.precio ? ` · $${s.precio.toLocaleString('es-AR')}` : ''}</p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:ml-4 sm:justify-end">
-                    <button onClick={() => setEditando(s.id)} className="text-xs text-muted hover:text-white">Editar</button>
-                    <button onClick={() => toggleActivo(s)} className={`text-xs ${s.activo ? 'text-muted hover:text-accent2' : 'text-accent3'}`}>{s.activo ? 'Desactivar' : 'Activar'}</button>
-                    <button onClick={() => eliminar(s.id)} className="text-xs text-accent2 hover:underline">Eliminar</button>
+                  <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2 sm:ml-4 sm:justify-end">
+                    <button onClick={() => setEditando(s.id)} className="min-h-9 rounded-lg border border-border px-2 text-xs text-muted hover:text-white">Editar</button>
+                    <button onClick={() => toggleActivo(s)} className={`min-h-9 rounded-lg border border-border px-2 text-xs ${s.activo ? 'text-muted hover:text-accent2' : 'text-accent3'}`}>{s.activo ? 'Pausar' : 'Activar'}</button>
+                    <button onClick={() => eliminar(s.id)} className="min-h-9 rounded-lg border border-accent2/30 px-2 text-xs text-accent2">Eliminar</button>
                   </div>
                 </div>
               </div>
@@ -445,10 +445,10 @@ function TabEquipo({ negocio, onChange }) {
                     {p.especialidad && <p className="text-xs text-muted">{p.especialidad}</p>}
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:justify-end">
-                  <button onClick={() => setEditando(p.id)} className="text-xs text-muted hover:text-white">Editar</button>
-                  <button onClick={() => toggleActivo(p)} className={`text-xs ${p.activo ? 'text-muted hover:text-accent2' : 'text-accent3'}`}>{p.activo ? 'Desactivar' : 'Activar'}</button>
-                  <button onClick={() => eliminar(p.id)} className="text-xs text-accent2 hover:underline">Eliminar</button>
+                <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2 sm:justify-end">
+                  <button onClick={() => setEditando(p.id)} className="min-h-9 rounded-lg border border-border px-2 text-xs text-muted hover:text-white">Editar</button>
+                  <button onClick={() => toggleActivo(p)} className={`min-h-9 rounded-lg border border-border px-2 text-xs ${p.activo ? 'text-muted hover:text-accent2' : 'text-accent3'}`}>{p.activo ? 'Pausar' : 'Activar'}</button>
+                  <button onClick={() => eliminar(p.id)} className="min-h-9 rounded-lg border border-accent2/30 px-2 text-xs text-accent2">Eliminar</button>
                 </div>
               </div>
             )
@@ -775,7 +775,7 @@ function TabApariencia({ negocio, setNegocio }) {
           <div className="px-5 py-4 flex items-center gap-3 border-b" style={{ borderColor: fondoOscuro ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
             {form.logo_url
               ? <img src={form.logo_url} alt="logo" className="w-10 h-10 rounded-xl object-cover" />
-              : <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background: form.color_primario + '33' }}>🏢</div>
+              : <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-mono" style={{ background: form.color_primario + '33', color: form.color_primario }}>LOGO</div>
             }
             <div>
               <p className="font-medium text-sm" style={{ color: fondoOscuro ? 'white' : '#111' }}>{negocio?.nombre}</p>
