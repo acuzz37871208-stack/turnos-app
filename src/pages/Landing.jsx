@@ -111,12 +111,6 @@ export default function Landing() {
             <p className="text-muted text-sm leading-relaxed mb-6">{negocio.descripcion}</p>
           )}
 
-          <button
-            onClick={() => navigate(`/${slug}/mis-turnos`)}
-            className="text-sm text-muted hover:text-white transition-colors"
-          >
-            Ya tengo una reserva
-          </button>
         </div>
       </div>
 
