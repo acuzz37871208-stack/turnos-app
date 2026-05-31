@@ -137,7 +137,7 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
 
       {!requierePago && (
         <Alert tone="info" className="mb-6">
-          Vas a recibir la confirmación con estos datos. También podés consultar o cancelar la reserva desde Mis turnos.
+          El negocio recibirá tu solicitud con estos datos. También podés consultar o cancelar la reserva desde Mis turnos.
         </Alert>
       )}
 
@@ -151,7 +151,7 @@ export default function StepResumen({ negocio, slug, onNext, onBack }) {
         </Button>
 
         <Button onClick={confirmar} disabled={loading} className="flex-1">
-          {loading ? <Spinner size="sm" /> : requierePago ? 'Ir al pago →' : 'Confirmar turno'}
+          {loading ? <Spinner size="sm" /> : requierePago ? 'Ir al pago →' : 'Enviar solicitud'}
         </Button>
       </div>
     </div>

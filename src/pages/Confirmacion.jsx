@@ -26,33 +26,40 @@ export default function Confirmacion() {
   const isPaymentReturn = Boolean(paymentStatus)
   const isPendingPayment = ['pending', 'in_process'].includes(paymentStatus)
   const isFailedPayment = ['failure', 'rejected', 'cancelled'].includes(paymentStatus)
+  const isManualPending = !isPaymentReturn && turnoConfirmado.estado === 'pendiente'
   const title = isPendingPayment
     ? 'Pago pendiente'
     : isFailedPayment
       ? 'No pudimos confirmar el pago'
       : isPaymentReturn
         ? '¡Pago recibido!'
-        : '¡Turno confirmado!'
+        : isManualPending
+          ? 'Solicitud recibida'
+          : '¡Turno confirmado!'
   const description = isPendingPayment
     ? 'Tu turno queda pendiente hasta que MercadoPago confirme el cobro.'
     : isFailedPayment
       ? 'El turno no queda confirmado. Podés volver a intentar la reserva.'
       : isPaymentReturn
         ? `Te enviamos la confirmación a ${turnoConfirmado.cliente_email}`
-        : `Te enviamos un recordatorio a ${turnoConfirmado.cliente_email}`
+        : isManualPending
+          ? `El negocio recibió tu solicitud. Te enviamos el detalle a ${turnoConfirmado.cliente_email}`
+          : `Te enviamos un recordatorio a ${turnoConfirmado.cliente_email}`
   const statusTone = isFailedPayment
     ? 'bg-accent2 bg-opacity-15 border-accent2 border-opacity-30 text-accent2'
-    : isPendingPayment
+    : isPendingPayment || isManualPending
       ? 'bg-yellow-400 bg-opacity-15 border-yellow-400 border-opacity-30 text-yellow-400'
       : 'bg-accent3 bg-opacity-15 border-accent3 border-opacity-30 text-accent3'
-  const statusIcon = isFailedPayment ? '!' : isPendingPayment ? '…' : '✓'
+  const statusIcon = isFailedPayment ? '!' : isPendingPayment || isManualPending ? '…' : '✓'
   const estadoLabel = isPendingPayment
     ? 'Pago en revisión'
     : isFailedPayment
       ? 'No confirmado'
       : isPaymentReturn
         ? 'Pago aprobado'
-        : 'Reserva confirmada'
+        : isManualPending
+          ? 'Pendiente de confirmación'
+          : 'Reserva confirmada'
 
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4">
@@ -102,15 +109,17 @@ export default function Confirmacion() {
           </div>
         </div>
 
-        {(isPendingPayment || isFailedPayment) && (
-          <Alert tone={isPendingPayment ? 'warning' : 'danger'} className="mb-6 text-left">
+        {(isPendingPayment || isFailedPayment || isManualPending) && (
+          <Alert tone={isFailedPayment ? 'danger' : 'warning'} className="mb-6 text-left">
             {isPendingPayment
               ? 'Si el pago se aprueba en unos minutos, el turno aparecerá como confirmado en Mis turnos.'
-              : 'Podés volver al inicio y reservar nuevamente el mismo u otro horario disponible.'}
+              : isManualPending
+                ? 'El negocio puede confirmar, atender o cancelar este turno desde su panel. Podés seguir el estado en Mis turnos.'
+                : 'Podés volver al inicio y reservar nuevamente el mismo u otro horario disponible.'}
           </Alert>
         )}
 
-        {!isPendingPayment && !isFailedPayment && (
+        {!isPendingPayment && !isFailedPayment && !isManualPending && (
           <Alert tone="success" className="mb-6 text-left">
             Guardá esta pantalla o entrá a Mis turnos para revisar o cancelar la reserva más adelante.
           </Alert>

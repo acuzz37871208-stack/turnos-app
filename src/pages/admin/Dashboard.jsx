@@ -302,7 +302,7 @@ export default function AdminDashboard() {
                           </button>
                         )}
 
-                        {['pendiente', 'confirmado'].includes(t.estado) && (
+                        {t.estado === 'confirmado' && (
                           <button
                             onClick={() => cambiarEstado(t.id, 'atendido')}
                             className="min-h-10 text-xs text-accent3 border border-accent3 border-opacity-30 bg-accent3 bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition"
