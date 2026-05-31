@@ -19,6 +19,65 @@ function escapeHtml(value: unknown) {
     .replaceAll("'", '&#039;')
 }
 
+function row(label: string, value: string) {
+  if (!value) return ''
+  return `
+    <tr>
+      <td style="padding: 10px 0; color: #64748b; font-size: 14px;">${label}</td>
+      <td style="padding: 10px 0; text-align: right; font-size: 14px; font-weight: 600; color: #0f172a;">${value}</td>
+    </tr>
+  `
+}
+
+function badge(label: string, color: string) {
+  return `
+    <span style="display: inline-block; border-radius: 999px; background: ${color}1A; color: ${color}; border: 1px solid ${color}40; padding: 6px 10px; font-size: 12px; font-weight: 700;">
+      ${label}
+    </span>
+  `
+}
+
+function baseEmail({ title, preview, badgeHtml, children }: { title: string; preview: string; badgeHtml?: string; children: string }) {
+  return `
+    <div style="margin: 0; padding: 0; background: #f4f6fb;">
+      <div style="display: none; max-height: 0; overflow: hidden;">${preview}</div>
+      <div style="font-family: Arial, Helvetica, sans-serif; max-width: 560px; margin: 0 auto; padding: 28px 16px;">
+        <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 18px; overflow: hidden;">
+          <div style="padding: 24px 24px 12px;">
+            <p style="margin: 0 0 12px; color: #7c6aff; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;">Turnos App</p>
+            ${badgeHtml ? `<div style="margin-bottom: 14px;">${badgeHtml}</div>` : ''}
+            <h1 style="margin: 0; color: #0f172a; font-size: 24px; line-height: 1.25;">${title}</h1>
+          </div>
+          <div style="padding: 0 24px 24px;">
+            ${children}
+          </div>
+        </div>
+        <p style="margin: 16px 0 0; color: #94a3b8; font-size: 12px; text-align: center;">
+          Este email fue enviado automáticamente por Turnos App.
+        </p>
+      </div>
+    </div>
+  `
+}
+
+async function sendEmail(resendKey: string, payload: Record<string, unknown>) {
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${resendKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '')
+    console.error('Resend error:', response.status, detail)
+  }
+
+  return response.ok
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -33,7 +92,7 @@ serve(async (req) => {
     // Obtener datos completos del turno
     const { data: turno } = await supabase
       .from('turnos')
-      .select('*, servicios(nombre, precio), profesionales(nombre), negocios(nombre, telefono, owner_id)')
+      .select('*, servicios(nombre, precio), profesionales(nombre), negocios(nombre, telefono, owner_id, slug)')
       .eq('id', turno_id)
       .single()
 
@@ -58,81 +117,111 @@ serve(async (req) => {
     const fechaFormateada = new Date(turno.fecha + 'T12:00:00').toLocaleDateString('es-AR', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     })
+    const appUrl = (Deno.env.get('APP_URL') || Deno.env.get('PUBLIC_SITE_URL') || '').replace(/\/$/, '')
     const clienteNombre = escapeHtml(turno.cliente_nombre)
     const negocioNombre = escapeHtml(negocio?.nombre)
     const servicioNombre = escapeHtml((turno.servicios as any)?.nombre)
     const profesionalNombre = escapeHtml((turno.profesionales as any)?.nombre)
     const nota = escapeHtml(turno.nota)
+    const telefonoCliente = escapeHtml(turno.cliente_telefono)
+    const emailCliente = escapeHtml(turno.cliente_email)
+    const precio = Number((turno.servicios as any)?.precio || 0)
+    const precioLabel = precio > 0 ? `$${precio.toLocaleString('es-AR')}` : ''
+    const turnoCode = escapeHtml(turno_id.slice(0, 8).toUpperCase())
+    const horaLabel = escapeHtml(`${turno.hora_inicio?.slice(0, 5) || turno.hora_inicio} hs`)
+    const manageUrl = appUrl && negocio?.slug
+      ? `${appUrl}/${encodeURIComponent(negocio.slug)}/mis-turnos?tel=${encodeURIComponent(turno.cliente_telefono)}&email=${encodeURIComponent(turno.cliente_email)}`
+      : ''
+    const adminUrl = appUrl ? `${appUrl}/admin` : ''
+    const isPendingPayment = turno.estado === 'pendiente_pago'
+    const isConfirmed = turno.estado === 'confirmado'
+    const clientStatus = isPendingPayment
+      ? { label: 'Pago pendiente', color: '#2563eb', title: 'Tu horario quedó reservado', intro: 'Completá el pago para dejar el turno confirmado.' }
+      : isConfirmed
+        ? { label: 'Confirmado', color: '#16a34a', title: 'Turno confirmado', intro: 'Tu turno quedó confirmado correctamente.' }
+        : { label: 'Solicitud recibida', color: '#ca8a04', title: 'Recibimos tu turno', intro: 'El negocio ya recibió tu solicitud de reserva.' }
+    const ownerStatus = isPendingPayment
+      ? { label: 'Pago pendiente', color: '#2563eb', title: 'Nuevo turno pendiente de pago', intro: 'El horario quedó bloqueado mientras el cliente completa el pago.' }
+      : isConfirmed
+        ? { label: 'Confirmado', color: '#16a34a', title: 'Nuevo turno confirmado', intro: 'Tenés un nuevo turno confirmado en tu agenda.' }
+        : { label: 'Pendiente', color: '#ca8a04', title: 'Nuevo turno recibido', intro: 'Tenés una nueva solicitud de turno para gestionar.' }
+
+    const detailsTable = `
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; margin: 22px 0;">
+        <table style="width: 100%; border-collapse: collapse;">
+          ${row('Negocio', negocioNombre)}
+          ${row('Servicio', servicioNombre)}
+          ${turno.profesionales ? row('Profesional', profesionalNombre) : ''}
+          ${row('Fecha', escapeHtml(fechaFormateada))}
+          ${row('Hora', horaLabel)}
+          ${precioLabel ? row('Precio', escapeHtml(precioLabel)) : ''}
+        </table>
+      </div>
+    `
 
     // Email al cliente
     if (turno.cliente_email) {
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'Turnos App <noreply@turnos.app>',
-          to: turno.cliente_email,
-          subject: `Turno confirmado - ${negocio?.nombre}`,
-          html: `
-            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-              <h2 style="color: #111; margin-bottom: 4px;">¡Turno confirmado!</h2>
-              <p style="color: #666; margin-bottom: 24px;">Hola ${clienteNombre}, tu turno quedó reservado.</p>
-              
-              <div style="background: #f9f9f9; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr><td style="padding: 8px 0; color: #888; font-size: 14px;">Negocio</td><td style="padding: 8px 0; text-align: right; font-size: 14px; font-weight: 500;">${negocioNombre}</td></tr>
-                  <tr><td style="padding: 8px 0; color: #888; font-size: 14px;">Servicio</td><td style="padding: 8px 0; text-align: right; font-size: 14px; font-weight: 500;">${servicioNombre}</td></tr>
-                  ${turno.profesionales ? `<tr><td style="padding: 8px 0; color: #888; font-size: 14px;">Profesional</td><td style="padding: 8px 0; text-align: right; font-size: 14px; font-weight: 500;">${profesionalNombre}</td></tr>` : ''}
-                  <tr><td style="padding: 8px 0; color: #888; font-size: 14px;">Fecha</td><td style="padding: 8px 0; text-align: right; font-size: 14px; font-weight: 500;">${fechaFormateada}</td></tr>
-                  <tr><td style="padding: 8px 0; color: #888; font-size: 14px;">Hora</td><td style="padding: 8px 0; text-align: right; font-size: 14px; font-weight: 500;">${turno.hora_inicio}hs</td></tr>
-                  ${(turno.servicios as any)?.precio ? `<tr><td style="padding: 8px 0; color: #888; font-size: 14px;">Precio</td><td style="padding: 8px 0; text-align: right; font-size: 14px; font-weight: 500;">$${Number((turno.servicios as any).precio).toLocaleString('es-AR')}</td></tr>` : ''}
-                </table>
-              </div>
-
-              <p style="color: #888; font-size: 13px;">
-                N° de turno: <span style="font-family: monospace;">#${turno_id.slice(0,8).toUpperCase()}</span>
-              </p>
-              ${negocio?.telefono ? `<p style="color: #888; font-size: 13px;">Contacto: ${escapeHtml(negocio.telefono)}</p>` : ''}
+      await sendEmail(resendKey, {
+        from: 'Turnos App <noreply@turnos.app>',
+        to: turno.cliente_email,
+        subject: `${clientStatus.title} - ${negocio?.nombre}`,
+        html: baseEmail({
+          title: clientStatus.title,
+          preview: `${clientStatus.intro} ${fechaFormateada} a las ${horaLabel}.`,
+          badgeHtml: badge(clientStatus.label, clientStatus.color),
+          children: `
+            <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0;">
+              Hola ${clienteNombre}, ${clientStatus.intro}
+            </p>
+            ${detailsTable}
+            ${isPendingPayment ? `<p style="color: #475569; font-size: 14px; line-height: 1.6;">El horario queda reservado temporalmente. Si el pago no se completa, puede liberarse automáticamente.</p>` : ''}
+            <div style="margin-top: 20px;">
+              ${manageUrl ? `<a href="${escapeHtml(manageUrl)}" style="display: inline-block; background: #7c6aff; color: #ffffff; text-decoration: none; border-radius: 10px; padding: 12px 16px; font-size: 14px; font-weight: 700;">Consultar mi reserva</a>` : ''}
             </div>
-          `
-        })
+            <p style="color: #64748b; font-size: 13px; margin-top: 22px;">
+              Código de reserva: <span style="font-family: monospace; color: #0f172a;">${turnoCode}</span>
+            </p>
+            ${negocio?.telefono ? `<p style="color: #64748b; font-size: 13px;">Contacto del negocio: ${escapeHtml(negocio.telefono)}</p>` : ''}
+          `,
+        }),
+        text: `${clientStatus.title}\n${clientStatus.intro}\n${negocio?.nombre} - ${fechaFormateada} ${horaLabel}\nServicio: ${(turno.servicios as any)?.nombre}\nCodigo: ${turnoCode}`,
       })
     }
 
     // Email al dueño del negocio
     if (ownerEmail) {
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'Turnos App <noreply@turnos.app>',
-          to: ownerEmail,
-          subject: `Nuevo turno - ${turno.cliente_nombre}`,
-          html: `
-            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-              <h2 style="color: #111; margin-bottom: 4px;">Nuevo turno reservado</h2>
-              <p style="color: #666; margin-bottom: 24px;">Alguien reservó un turno en <strong>${negocioNombre}</strong>.</p>
-              
-              <div style="background: #f9f9f9; border-radius: 12px; padding: 20px;">
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr><td style="padding: 8px 0; color: #888; font-size: 14px;">Cliente</td><td style="padding: 8px 0; text-align: right; font-size: 14px; font-weight: 500;">${clienteNombre}</td></tr>
-                  <tr><td style="padding: 8px 0; color: #888; font-size: 14px;">Teléfono</td><td style="padding: 8px 0; text-align: right; font-size: 14px; font-weight: 500;">${escapeHtml(turno.cliente_telefono)}</td></tr>
-                  <tr><td style="padding: 8px 0; color: #888; font-size: 14px;">Servicio</td><td style="padding: 8px 0; text-align: right; font-size: 14px; font-weight: 500;">${servicioNombre}</td></tr>
-                  ${turno.profesionales ? `<tr><td style="padding: 8px 0; color: #888; font-size: 14px;">Profesional</td><td style="padding: 8px 0; text-align: right; font-size: 14px; font-weight: 500;">${profesionalNombre}</td></tr>` : ''}
-                  <tr><td style="padding: 8px 0; color: #888; font-size: 14px;">Fecha</td><td style="padding: 8px 0; text-align: right; font-size: 14px; font-weight: 500;">${fechaFormateada}</td></tr>
-                  <tr><td style="padding: 8px 0; color: #888; font-size: 14px;">Hora</td><td style="padding: 8px 0; text-align: right; font-size: 14px; font-weight: 500;">${turno.hora_inicio}hs</td></tr>
-                  ${turno.nota ? `<tr><td style="padding: 8px 0; color: #888; font-size: 14px;">Nota</td><td style="padding: 8px 0; text-align: right; font-size: 14px; font-style: italic;">"${nota}"</td></tr>` : ''}
-                </table>
-              </div>
+      await sendEmail(resendKey, {
+        from: 'Turnos App <noreply@turnos.app>',
+        to: ownerEmail,
+        subject: `${ownerStatus.title} - ${turno.cliente_nombre}`,
+        html: baseEmail({
+          title: ownerStatus.title,
+          preview: `${clienteNombre} reservó ${servicioNombre} para ${fechaFormateada} a las ${horaLabel}.`,
+          badgeHtml: badge(ownerStatus.label, ownerStatus.color),
+          children: `
+            <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0;">
+              ${ownerStatus.intro}
+            </p>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; margin: 22px 0;">
+              <table style="width: 100%; border-collapse: collapse;">
+                ${row('Cliente', clienteNombre)}
+                ${row('Teléfono', telefonoCliente)}
+                ${row('Email', emailCliente)}
+                ${row('Servicio', servicioNombre)}
+                ${turno.profesionales ? row('Profesional', profesionalNombre) : ''}
+                ${row('Fecha', escapeHtml(fechaFormateada))}
+                ${row('Hora', horaLabel)}
+                ${precioLabel ? row('Precio', escapeHtml(precioLabel)) : ''}
+                ${turno.nota ? row('Nota', `"${nota}"`) : ''}
+              </table>
             </div>
-          `
-        })
+            ${adminUrl ? `<a href="${escapeHtml(adminUrl)}" style="display: inline-block; background: #7c6aff; color: #ffffff; text-decoration: none; border-radius: 10px; padding: 12px 16px; font-size: 14px; font-weight: 700;">Abrir panel</a>` : ''}
+            <p style="color: #64748b; font-size: 13px; margin-top: 22px;">
+              Código de reserva: <span style="font-family: monospace; color: #0f172a;">${turnoCode}</span>
+            </p>
+          `,
+        }),
+        text: `${ownerStatus.title}\nCliente: ${turno.cliente_nombre}\nTelefono: ${turno.cliente_telefono}\nServicio: ${(turno.servicios as any)?.nombre}\nFecha: ${fechaFormateada} ${horaLabel}`,
       })
     }
 

@@ -60,6 +60,26 @@ async function validateMercadoPagoSignature(req: Request, dataId: string | null)
   return timingSafeEqual(expected, v1)
 }
 
+async function notifyTurno(turnoId: string, negocioId: string) {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')?.replace(/\/$/, '')
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
+  if (!supabaseUrl || !serviceRoleKey) return
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/notificar-turno`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${serviceRoleKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ turno_id: turnoId, negocio_id: negocioId }),
+  })
+
+  if (!response.ok) {
+    console.error(`Notification failed for turno ${turnoId}: ${response.status}`)
+  }
+}
+
 serve(async (req) => {
   try {
     const url = new URL(req.url)
@@ -156,6 +176,12 @@ serve(async (req) => {
         mp_payment_id:  String(paymentId),
       })
       .eq('id', turno.id)
+
+    if (nuevoEstado === 'confirmado') {
+      notifyTurno(turno.id, turno.negocio_id).catch((error) => {
+        console.error('Notification after payment failed:', error)
+      })
+    }
 
     console.log(`Turno ${turno.id} → ${nuevoEstado} (pago ${paymentId})`)
     return new Response('ok', { status: 200 })
