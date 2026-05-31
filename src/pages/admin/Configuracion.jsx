@@ -90,7 +90,7 @@ export default function Configuracion() {
   if (loading) return <LoadingScreen title="Cargando configuración" description="Buscando los datos de tu agenda." />
 
   const publicUrl = `${window.location.origin}/${negocio?.slug}`
-  const readyToPublish = checklist.servicios > 0 && checklist.horarios > 0
+  const readyToPublish = checklist.servicios > 0 && checklist.profesionales > 0 && checklist.horarios > 0
 
   async function togglePublicacion() {
     if (!negocio || (!negocio.activo && !readyToPublish)) return
@@ -116,7 +116,7 @@ export default function Configuracion() {
   const tabs = [
     { id: 'general', label: 'General' },
     { id: 'servicios', label: 'Servicios' },
-    ...(needsProfesional(negocio?.tipo) ? [{ id: 'equipo', label: negocio?.label_profesional || 'Equipo' }] : []),
+    { id: 'equipo', label: needsProfesional(negocio?.tipo) ? negocio?.label_profesional || 'Equipo' : negocio?.label_profesional || 'Espacios' },
     { id: 'horarios', label: 'Horarios' },
     { id: 'pagos', label: 'Pagos' },
     { id: 'apariencia', label: 'Apariencia' },
@@ -153,6 +153,7 @@ export default function Configuracion() {
           readyToPublish={readyToPublish}
           onCopy={copiarLink}
           onTogglePublicacion={togglePublicacion}
+          onOpenTab={setActiveTab}
         />
 
         {activeTab === 'general'   && <TabGeneral   negocio={negocio} setNegocio={setNegocio} publicUrl={publicUrl} />}
@@ -166,17 +167,23 @@ export default function Configuracion() {
   )
 }
 
-function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, readyToPublish, onCopy, onTogglePublicacion }) {
+function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, readyToPublish, onCopy, onTogglePublicacion, onOpenTab }) {
   const equipoLabel = needsProfesional(negocio?.tipo)
     ? 'Equipo activo'
     : negocio?.tipo === 'cancha'
       ? 'Canchas activas'
       : 'Recursos activos'
 
+  const requiredItems = [
+    { id: 'servicios', label: 'Servicios', value: checklist.servicios, ready: checklist.servicios > 0, tab: 'servicios' },
+    { id: 'equipo', label: equipoLabel, value: checklist.profesionales, ready: checklist.profesionales > 0, tab: 'equipo' },
+    { id: 'horarios', label: 'Horarios', value: checklist.horarios, ready: checklist.horarios > 0, tab: 'horarios' },
+  ]
+  const readyCount = requiredItems.filter((item) => item.ready).length
+  const nextStep = requiredItems.find((item) => !item.ready)
+
   const items = [
-    { label: 'Servicios activos', value: checklist.servicios, ready: checklist.servicios > 0 },
-    { label: equipoLabel, value: checklist.profesionales, ready: checklist.profesionales > 0 },
-    { label: 'Horarios cargados', value: checklist.horarios, ready: checklist.horarios > 0 },
+    ...requiredItems,
     { label: 'MercadoPago', value: negocio?.mp_access_token ? 'Conectado' : 'Opcional', ready: true },
   ]
 
@@ -196,6 +203,9 @@ function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, 
                 ? 'La agenda está lista para publicarse.'
                 : 'Completá los puntos pendientes antes de publicarla.'}
           </p>
+          <p className="text-xs text-muted mt-2">
+            Progreso de publicación: {readyCount}/{requiredItems.length} requisitos listos.
+          </p>
           <p className="text-xs font-mono text-accent mt-3 break-all">{publicUrl}</p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col sm:min-w-36">
@@ -210,6 +220,11 @@ function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, 
           >
             {publishSaving ? <Spinner size="sm" /> : negocio?.activo ? 'Pausar' : 'Publicar'}
           </Button>
+          {nextStep && (
+            <Button type="button" variant="ghost" onClick={() => onOpenTab?.(nextStep.tab)} className="col-span-2 text-sm px-3 py-2 flex-1">
+              Completar {nextStep.label.toLowerCase()}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -223,6 +238,9 @@ function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, 
               <span className="text-sm text-white">{item.label}</span>
               <Tag color={item.ready ? 'green' : 'red'}>{item.value}</Tag>
             </div>
+            {!item.ready && (
+              <p className="text-xs text-muted mt-1">Necesario para recibir reservas sin fricción.</p>
+            )}
           </div>
         ))}
       </div>
@@ -382,7 +400,10 @@ function TabEquipo({ negocio, onChange }) {
   const [loading, setLoading] = useState(true)
   const [nuevo, setNuevo] = useState(false)
   const [editando, setEditando] = useState(null)
-  const label = negocio?.label_profesional || 'Profesional'
+  const label = negocio?.label_profesional || (needsProfesional(negocio?.tipo) ? 'Profesional' : 'Espacio')
+  const sectionDescription = needsProfesional(negocio?.tipo)
+    ? 'Personas que atienden reservas'
+    : 'Espacios, canchas o recursos que pueden reservarse'
 
   const fetchProfesionales = useCallback(async () => {
     const { data } = await supabase.from('profesionales').select('*').eq('negocio_id', negocio.id).order('nombre')
@@ -403,7 +424,7 @@ function TabEquipo({ negocio, onChange }) {
   if (loading) return <LoadingBlock title={`Cargando ${label.toLowerCase()}`} description="Buscando los recursos activos." />
 
   return (
-    <Section title={label} description={`Quiénes atienden en tu negocio`}
+    <Section title={label} description={sectionDescription}
       action={<Button onClick={() => { setNuevo(true); setEditando(null) }} className="w-full text-sm px-3 py-2 sm:w-auto">+ Agregar</Button>}>
       {nuevo && <FormProfesional negocioId={negocio.id} label={label} onSave={() => { setNuevo(false); fetchProfesionales(); onChange?.() }} onCancel={() => setNuevo(false)} />}
       {profesionales.length === 0 && !nuevo ? (
@@ -522,12 +543,15 @@ function TabHorarios({ negocio, onChange }) {
   }
 
   if (loading) return <LoadingBlock title="Cargando horarios" description="Preparando la grilla semanal." />
+  const resourceLabel = needsProfesional(negocio?.tipo)
+    ? 'miembro del equipo'
+    : (negocio?.label_profesional || 'espacio').toLowerCase()
 
   return (
     <div>
-      <Section title="Horarios regulares" description="Días y horarios de atención por miembro del equipo">
+      <Section title="Horarios regulares" description={`Días y horarios de atención por ${resourceLabel}`}>
         {profesionales.length === 0 ? (
-          <EmptyState title="Falta cargar el equipo" description="Primero agregá los recursos que van a recibir reservas." />
+          <EmptyState title={`Falta cargar ${resourceLabel}`} description="Primero agregá los recursos que van a recibir reservas." />
         ) : profesionales.map(prof => (
           <div key={prof.id} className="mb-6">
             <div className="flex items-center gap-2 mb-3">
