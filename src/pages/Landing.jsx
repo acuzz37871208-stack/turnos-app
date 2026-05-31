@@ -10,15 +10,6 @@ const tipoIconos = {
   default: 'AG',
 }
 
-function Stat({ value, label }) {
-  return (
-    <div className="bg-surface border border-border rounded-lg px-3 py-3">
-      <p className="text-lg font-mono text-white">{value}</p>
-      <p className="text-xs text-muted">{label}</p>
-    </div>
-  )
-}
-
 function ServiceCard({ servicio, onSelect }) {
   const precio = Number(servicio.precio || 0)
 
@@ -82,11 +73,6 @@ export default function Landing() {
   )
 
   const icono = tipoIconos[negocio.tipo] || tipoIconos.default
-  const serviciosConPrecio = servicios.filter((servicio) => Number(servicio.precio) > 0)
-  const serviciosConPago = servicios.filter((servicio) => servicio.requiere_pago).length
-  const precioDesde = serviciosConPrecio.length
-    ? Math.min(...serviciosConPrecio.map((servicio) => Number(servicio.precio)))
-    : null
   const tipoLabel = {
     clinica: 'Clínica',
     peluqueria: 'Peluquería',
@@ -125,23 +111,12 @@ export default function Landing() {
             <p className="text-muted text-sm leading-relaxed mb-6">{negocio.descripcion}</p>
           )}
 
-          <div className="grid grid-cols-3 gap-2 mb-6">
-            <Stat value={servicios.length} label="servicios" />
-            <Stat value={precioDesde ? `$${precioDesde.toLocaleString('es-AR')}` : '-'} label="desde" />
-            <Stat value={serviciosConPago > 0 ? 'MP' : '24h'} label={serviciosConPago > 0 ? 'pagos' : 'online'} />
-          </div>
-
-          <div className="grid grid-cols-[1fr_auto] gap-2">
-            <Button onClick={() => handleReservar()} disabled={servicios.length === 0} className="py-3 text-base">
-              Reservar turno
-            </Button>
-            <Button variant="ghost" onClick={() => navigate(`/${slug}/mis-turnos`)} className="px-3 py-3 text-sm">
-              Mis turnos
-            </Button>
-          </div>
-          <p className="text-center text-xs text-muted mt-3">
-            Reserva rápida, sin llamadas ni esperas.
-          </p>
+          <button
+            onClick={() => navigate(`/${slug}/mis-turnos`)}
+            className="text-sm text-muted hover:text-white transition-colors"
+          >
+            Ya tengo una reserva
+          </button>
         </div>
       </div>
 
