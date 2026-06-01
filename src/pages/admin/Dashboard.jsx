@@ -45,6 +45,13 @@ function estadoHelp(estado) {
   }[estado]
 }
 
+function whatsappUrl(telefono, mensaje) {
+  const digits = String(telefono || '').replace(/\D/g, '')
+  if (!digits) return null
+  const normalized = digits.startsWith('54') ? digits : `54${digits}`
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(mensaje)}`
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const [negocio, setNegocio] = useState(null)
@@ -85,8 +92,19 @@ export default function AdminDashboard() {
     init()
   }, [fetchTurnos, filtroFecha, navigate])
 
+  async function notificarTurno(id) {
+    if (!negocio) return
+    const { error } = await supabase.functions.invoke('notificar-turno', {
+      body: { turno_id: id, negocio_id: negocio.id },
+    })
+    if (error) console.warn('No se pudo enviar la notificación del turno', error)
+  }
+
   async function cambiarEstado(id, estado) {
-    await supabase.from('turnos').update({ estado }).eq('id', id)
+    const { error } = await supabase.from('turnos').update({ estado }).eq('id', id)
+    if (!error && ['confirmado', 'cancelado'].includes(estado)) {
+      await notificarTurno(id)
+    }
     if (negocio) fetchTurnos(negocio.id, filtroFecha)
   }
 
@@ -241,6 +259,8 @@ export default function AdminDashboard() {
           <div className="flex flex-col gap-3">
             {turnosFiltrados.map(t => {
               const hora = t.hora_inicio?.slice(0, 5)
+              const whatsappMensaje = `Hola ${t.cliente_nombre}, te escribimos de ${negocio?.nombre || 'la agenda'} por tu turno de ${t.servicios?.nombre || 'servicio'} del ${formatearFecha(t.fecha)} a las ${hora} hs.`
+              const whatsappHref = whatsappUrl(t.cliente_telefono, whatsappMensaje)
               return (
                 <div
                   key={t.id}
@@ -283,6 +303,16 @@ export default function AdminDashboard() {
                             className="min-h-10 text-xs text-muted border border-border px-3 py-2 rounded-lg hover:text-white hover:border-muted transition text-center"
                           >
                             Llamar
+                          </a>
+                        )}
+                        {whatsappHref && (
+                          <a
+                            href={whatsappHref}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="min-h-10 text-xs text-accent border border-accent border-opacity-30 bg-accent bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition text-center"
+                          >
+                            WhatsApp
                           </a>
                         )}
                         {t.cliente_email && (

@@ -135,16 +135,21 @@ serve(async (req) => {
     const adminUrl = appUrl ? `${appUrl}/admin` : ''
     const isPendingPayment = turno.estado === 'pendiente_pago'
     const isConfirmed = turno.estado === 'confirmado'
+    const isCancelled = turno.estado === 'cancelado'
     const clientStatus = isPendingPayment
       ? { label: 'Pago pendiente', color: '#2563eb', title: 'Tu horario quedó reservado', intro: 'Completá el pago para dejar el turno confirmado.' }
       : isConfirmed
         ? { label: 'Confirmado', color: '#16a34a', title: 'Turno confirmado', intro: 'Tu turno quedó confirmado correctamente.' }
-        : { label: 'Solicitud recibida', color: '#ca8a04', title: 'Recibimos tu turno', intro: 'El negocio ya recibió tu solicitud de reserva.' }
+        : isCancelled
+          ? { label: 'Cancelado', color: '#dc2626', title: 'Turno cancelado', intro: 'Tu turno fue cancelado.' }
+          : { label: 'Solicitud recibida', color: '#ca8a04', title: 'Recibimos tu turno', intro: 'El negocio ya recibió tu solicitud de reserva.' }
     const ownerStatus = isPendingPayment
       ? { label: 'Pago pendiente', color: '#2563eb', title: 'Nuevo turno pendiente de pago', intro: 'El horario quedó bloqueado mientras el cliente completa el pago.' }
       : isConfirmed
         ? { label: 'Confirmado', color: '#16a34a', title: 'Nuevo turno confirmado', intro: 'Tenés un nuevo turno confirmado en tu agenda.' }
-        : { label: 'Pendiente', color: '#ca8a04', title: 'Nuevo turno recibido', intro: 'Tenés una nueva solicitud de turno para gestionar.' }
+        : isCancelled
+          ? { label: 'Cancelado', color: '#dc2626', title: 'Turno cancelado', intro: 'Este turno quedó cancelado en tu agenda.' }
+          : { label: 'Pendiente', color: '#ca8a04', title: 'Nuevo turno recibido', intro: 'Tenés una nueva solicitud de turno para gestionar.' }
 
     const detailsTable = `
       <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; margin: 22px 0;">
@@ -175,6 +180,7 @@ serve(async (req) => {
             </p>
             ${detailsTable}
             ${isPendingPayment ? `<p style="color: #475569; font-size: 14px; line-height: 1.6;">El horario queda reservado temporalmente. Si el pago no se completa, puede liberarse automáticamente.</p>` : ''}
+            ${isCancelled ? `<p style="color: #475569; font-size: 14px; line-height: 1.6;">Ya no figura como turno activo. Si necesitás otro horario, podés volver a reservar desde la agenda.</p>` : ''}
             <div style="margin-top: 20px;">
               ${manageUrl ? `<a href="${escapeHtml(manageUrl)}" style="display: inline-block; background: #7c6aff; color: #ffffff; text-decoration: none; border-radius: 10px; padding: 12px 16px; font-size: 14px; font-weight: 700;">Consultar mi reserva</a>` : ''}
             </div>

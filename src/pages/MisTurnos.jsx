@@ -125,6 +125,20 @@ export default function MisTurnos() {
       return
     }
 
+    const { data: negocio } = await supabase
+      .from('negocios_public')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle()
+
+    if (negocio?.id) {
+      supabase.functions.invoke('notificar-turno', {
+        body: { turno_id: id, negocio_id: negocio.id },
+      }).then(({ error: notifyError }) => {
+        if (notifyError) console.warn('No se pudo enviar la notificación de cancelación', notifyError)
+      })
+    }
+
     buscar()
   }
 
