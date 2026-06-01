@@ -1,6 +1,7 @@
 // supabase/functions/notificar-turno/index.ts
 // Deploy: supabase functions deploy notificar-turno
 // Requiere variable de entorno: RESEND_API_KEY (gratis en resend.com)
+// Opcional: RESEND_FROM_EMAIL="Turnos App <turnos@tudominio.com>"
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -60,13 +61,19 @@ function baseEmail({ title, preview, badgeHtml, children }: { title: string; pre
   `
 }
 
-async function sendEmail(resendKey: string, payload: Record<string, unknown>) {
+async function sendEmail(resendKey: string, payload: Record<string, unknown>, idempotencyKey?: string) {
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${resendKey}`,
+    'Content-Type': 'application/json',
+  }
+
+  if (idempotencyKey) {
+    headers['Idempotency-Key'] = idempotencyKey
+  }
+
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${resendKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify(payload),
   })
 
@@ -108,6 +115,7 @@ serve(async (req) => {
     const ownerEmail = ownerData?.user?.email
 
     const resendKey = Deno.env.get('RESEND_API_KEY')
+    const emailFrom = Deno.env.get('RESEND_FROM_EMAIL') || 'Turnos App <onboarding@resend.dev>'
 
     if (!resendKey) {
       console.log('RESEND_API_KEY no configurada — notificaciones desactivadas')
@@ -167,8 +175,9 @@ serve(async (req) => {
     // Email al cliente
     if (turno.cliente_email) {
       await sendEmail(resendKey, {
-        from: 'Turnos App <noreply@turnos.app>',
+        from: emailFrom,
         to: turno.cliente_email,
+        reply_to: ownerEmail || undefined,
         subject: `${clientStatus.title} - ${negocio?.nombre}`,
         html: baseEmail({
           title: clientStatus.title,
@@ -191,14 +200,15 @@ serve(async (req) => {
           `,
         }),
         text: `${clientStatus.title}\n${clientStatus.intro}\n${negocio?.nombre} - ${fechaFormateada} ${horaLabel}\nServicio: ${(turno.servicios as any)?.nombre}\nCodigo: ${turnoCode}`,
-      })
+      }, `client-${turno_id}-${turno.estado}`)
     }
 
     // Email al dueño del negocio
     if (ownerEmail) {
       await sendEmail(resendKey, {
-        from: 'Turnos App <noreply@turnos.app>',
+        from: emailFrom,
         to: ownerEmail,
+        reply_to: turno.cliente_email || undefined,
         subject: `${ownerStatus.title} - ${turno.cliente_nombre}`,
         html: baseEmail({
           title: ownerStatus.title,
@@ -228,7 +238,7 @@ serve(async (req) => {
           `,
         }),
         text: `${ownerStatus.title}\nCliente: ${turno.cliente_nombre}\nTelefono: ${turno.cliente_telefono}\nServicio: ${(turno.servicios as any)?.nombre}\nFecha: ${fechaFormateada} ${horaLabel}`,
-      })
+      }, `owner-${turno_id}-${turno.estado}`)
     }
 
     return new Response('ok', { headers: corsHeaders })

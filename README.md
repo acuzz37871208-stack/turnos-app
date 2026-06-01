@@ -104,6 +104,27 @@ supabase functions deploy mp-webhook
 
 ---
 
+## Emails transaccionales
+
+La app envía emails para reservas recibidas, turnos confirmados y cancelaciones mediante Resend desde la Edge Function `notificar-turno`.
+
+Variables necesarias en Supabase Edge Functions:
+
+```bash
+supabase secrets set RESEND_API_KEY=re_xxxxxxxxx
+supabase secrets set APP_URL=https://turnos-app-three.vercel.app
+```
+
+Variable recomendada para producción:
+
+```bash
+supabase secrets set RESEND_FROM_EMAIL="Turnos App <turnos@tudominio.com>"
+```
+
+Para usar un dominio propio, primero hay que verificarlo en Resend agregando los registros DNS que indique el panel. Hasta verificar el dominio, la función usa `Turnos App <onboarding@resend.dev>` como remitente de prueba.
+
+---
+
 ## Licencia
 
 MIT
