@@ -41,6 +41,10 @@ function authErrorMessage(error) {
   return 'No pudimos validar la cuenta. Revisá los datos e intentá de nuevo.'
 }
 
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
 function horaAMinutos(hora) {
   const [horas, minutos] = hora.split(':').map(Number)
   return horas * 60 + minutos
@@ -115,17 +119,25 @@ export default function Onboarding() {
   async function crearCuenta(e) {
     e.preventDefault()
     setLoading(true); setError(null)
-    if (!email.trim() || password.length < 8) {
+    const requestedEmail = normalizeEmail(email)
+    if (!requestedEmail || password.length < 8) {
       setError('Ingresá un email y una contraseña de al menos 8 caracteres.')
       setLoading(false)
       return
     }
 
-    const { error: signUpError } = await supabase.auth.signUp({ email, password })
+    const { error: signUpError } = await supabase.auth.signUp({ email: requestedEmail, password })
     if (signUpError) { setError(authErrorMessage(signUpError)); setLoading(false); return }
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email: requestedEmail, password })
     if (signInError) { setError(authErrorMessage(signInError)); setLoading(false); return }
     const { data: { user } } = await supabase.auth.getUser()
+    if (!user || normalizeEmail(user.email) !== requestedEmail) {
+      await supabase.auth.signOut()
+      setSession(null)
+      setError('La sesión activa no coincide con el email ingresado. Volvé a iniciar el alta con esa cuenta.')
+      setLoading(false)
+      return
+    }
     setSession(user ? { user } : null)
     setLoading(false); next()
   }
