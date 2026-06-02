@@ -20,10 +20,10 @@ function ServiceCard({ servicio, onSelect }) {
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-white">{servicio.nombre}</p>
+          <p className="text-sm font-medium text-white">{servicio.nombre || 'Servicio'}</p>
           {servicio.descripcion && <p className="text-xs text-muted mt-1">{servicio.descripcion}</p>}
           <div className="flex flex-wrap items-center gap-2 mt-2">
-            <span className="text-xs text-muted">{servicio.duracion_min} min</span>
+            <span className="text-xs text-muted">{servicio.duracion_min || 30} min</span>
             {servicio.requiere_pago && (
               <span className="text-xs text-yellow-400 bg-yellow-400 bg-opacity-10 px-2 py-0.5 rounded-full">
                 pago online

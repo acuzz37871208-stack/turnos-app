@@ -10,6 +10,7 @@ import Configuracion  from './pages/admin/Configuracion'
 import Onboarding     from './pages/onboarding/Onboarding'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import { LoadingScreen } from './components/ui'
+import ErrorBoundary  from './components/ErrorBoundary'
 
 export default function App() {
   const { loading } = useAuth()
@@ -17,18 +18,22 @@ export default function App() {
   if (loading) return <LoadingScreen title="Cargando Turnos" description="Estamos preparando tu sesión." />
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/:slug"               element={<Landing />} />
-        <Route path="/:slug/reservar"      element={<BookingFlow />} />
-        <Route path="/:slug/confirmacion"  element={<Confirmacion />} />
-        <Route path="/:slug/mis-turnos"    element={<MisTurnos />} />
-        <Route path="/admin/login"         element={<AdminLogin />} />
-        <Route path="/admin"               element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/admin/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
-        <Route path="/onboarding"          element={<Onboarding />} />
-        <Route path="/"                    element={<Navigate to="/onboarding" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/:slug"               element={<Landing />} />
+          <Route path="/:slug/servicios"     element={<Landing />} />
+          <Route path="/:slug/reservar"      element={<BookingFlow />} />
+          <Route path="/:slug/confirmacion"  element={<Confirmacion />} />
+          <Route path="/:slug/mis-turnos"    element={<MisTurnos />} />
+          <Route path="/admin/login"         element={<AdminLogin />} />
+          <Route path="/admin"               element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/admin/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
+          <Route path="/onboarding"          element={<Onboarding />} />
+          <Route path="/"                    element={<Navigate to="/onboarding" replace />} />
+          <Route path="*"                    element={<Navigate to="/onboarding" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }

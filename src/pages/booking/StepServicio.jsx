@@ -23,14 +23,14 @@ export default function StepServicio({ servicios, onNext, onBack }) {
               <Card key={s.id} selected={servicio?.id === s.id} onClick={() => handleSelect(s)}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <p className="font-medium text-white">{s.nombre}</p>
-                    <p className="text-sm text-muted mt-0.5">{s.duracion_min} min</p>
+                    <p className="font-medium text-white">{s.nombre || 'Servicio'}</p>
+                    <p className="text-sm text-muted mt-0.5">{s.duracion_min || 30} min</p>
                     {s.descripcion && <p className="text-xs text-muted mt-1">{s.descripcion}</p>}
                   </div>
                   <div className="flex items-center justify-between gap-3 sm:ml-4 sm:block sm:flex-shrink-0 sm:text-right">
                     {s.precio ? (
                       <>
-                        <p className="text-sm font-mono text-accent3">${s.precio.toLocaleString('es-AR')}</p>
+                        <p className="text-sm font-mono text-accent3">${Number(s.precio || 0).toLocaleString('es-AR')}</p>
                         {s.requiere_pago && (
                           <span className="text-xs text-yellow-400 bg-yellow-400 bg-opacity-10 px-2 py-0.5 rounded-full">
                             pago requerido

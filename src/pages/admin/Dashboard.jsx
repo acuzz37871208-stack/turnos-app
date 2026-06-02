@@ -249,8 +249,8 @@ export default function AdminDashboard() {
         )}
 
         {metrics.pendiente > 0 && (
-          <Alert tone="warning" className="mb-6">
-            Tenés {metrics.pendiente} turno{metrics.pendiente !== 1 ? 's' : ''} pendiente{metrics.pendiente !== 1 ? 's' : ''} de confirmación manual.
+          <Alert tone="warning" title="Turnos pendientes" className="mb-6">
+            Usá los botones Confirmar o Cancelar dentro de cada tarjeta de turno.
           </Alert>
         )}
 
