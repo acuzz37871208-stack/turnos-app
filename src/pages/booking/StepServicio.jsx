@@ -16,7 +16,7 @@ export default function StepServicio({ servicios, onNext, onBack }) {
       </p>
 
       {servicios.length === 0
-        ? <EmptyState icon="🛠️" title="No hay servicios disponibles" description="El negocio todavía no publicó opciones para reservar." />
+        ? <EmptyState icon="0" title="No hay servicios disponibles" description="El negocio todavía no publicó opciones para reservar." />
         : (
           <div className="flex flex-col gap-3 mb-8">
             {servicios.map(s => (

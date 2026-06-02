@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../services/supabase'
-import { Alert, Badge, Button, LoadingBlock } from '../../components/ui'
+import { Alert, Badge, Button, LoadingBlock, Spinner } from '../../components/ui'
 import { applyBusinessTheme } from '../../lib/theme'
 
 function fechaLocalISO(date = new Date()) {
@@ -45,6 +45,14 @@ function estadoHelp(estado) {
   }[estado]
 }
 
+function estadoAccionLabel(estado) {
+  return {
+    confirmado: 'Turno confirmado',
+    atendido: 'Turno marcado como atendido',
+    cancelado: 'Turno cancelado',
+  }[estado] || 'Turno actualizado'
+}
+
 function whatsappUrl(telefono, mensaje) {
   const digits = String(telefono || '').replace(/\D/g, '')
   if (!digits) return null
@@ -59,15 +67,27 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [filtroFecha, setFiltroFecha] = useState(fechaLocalISO())
   const [filtroEstado, setFiltroEstado] = useState('todos')
+  const [accionId, setAccionId] = useState(null)
+  const [notice, setNotice] = useState(null)
 
   const fetchTurnos = useCallback(async (negocioId, fecha) => {
     setLoading(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('turnos')
       .select('*, servicios(nombre), profesionales(nombre)')
       .eq('negocio_id', negocioId)
       .eq('fecha', fecha)
       .order('hora_inicio')
+    if (error) {
+      setNotice({
+        tone: 'danger',
+        title: 'No pudimos actualizar la agenda',
+        message: 'Reintentá en unos segundos. Si el problema sigue, revisá tu conexión.',
+      })
+      setTurnos([])
+      setLoading(false)
+      return
+    }
     setTurnos(data || [])
     setLoading(false)
   }, [])
@@ -97,15 +117,42 @@ export default function AdminDashboard() {
     const { error } = await supabase.functions.invoke('notificar-turno', {
       body: { turno_id: id, negocio_id: negocio.id },
     })
-    if (error) console.warn('No se pudo enviar la notificación del turno', error)
+    if (error) {
+      console.warn('No se pudo enviar la notificación del turno', error)
+      return false
+    }
+    return true
   }
 
   async function cambiarEstado(id, estado) {
+    setAccionId(id)
+    setNotice(null)
+
     const { error } = await supabase.from('turnos').update({ estado }).eq('id', id)
-    if (!error && ['confirmado', 'cancelado'].includes(estado)) {
-      await notificarTurno(id)
+    if (error) {
+      setNotice({
+        tone: 'danger',
+        title: 'No pudimos actualizar el turno',
+        message: 'El cambio no se guardó. Reintentá antes de avisarle al cliente.',
+      })
+      setAccionId(null)
+      return
     }
+
+    const envioEmailOk = ['confirmado', 'cancelado'].includes(estado)
+      ? await notificarTurno(id)
+      : true
+
+    setNotice({
+      tone: envioEmailOk ? 'success' : 'warning',
+      title: estadoAccionLabel(estado),
+      message: envioEmailOk
+        ? 'La agenda quedó actualizada.'
+        : 'La agenda quedó actualizada, pero no pudimos enviar el email automático. Usá WhatsApp o email manual para avisar.',
+    })
+
     if (negocio) fetchTurnos(negocio.id, filtroFecha)
+    setAccionId(null)
   }
 
   function irAFecha(fecha) {
@@ -207,6 +254,12 @@ export default function AdminDashboard() {
           </Alert>
         )}
 
+        {notice && (
+          <Alert tone={notice.tone} title={notice.title} className="mb-6">
+            {notice.message}
+          </Alert>
+        )}
+
         <div className="mb-6">
           <input
             type="date"
@@ -261,6 +314,7 @@ export default function AdminDashboard() {
               const hora = t.hora_inicio?.slice(0, 5)
               const whatsappMensaje = `Hola ${t.cliente_nombre}, te escribimos de ${negocio?.nombre || 'la agenda'} por tu turno de ${t.servicios?.nombre || 'servicio'} del ${formatearFecha(t.fecha)} a las ${hora} hs.`
               const whatsappHref = whatsappUrl(t.cliente_telefono, whatsappMensaje)
+              const procesando = accionId === t.id
               return (
                 <div
                   key={t.id}
@@ -326,27 +380,30 @@ export default function AdminDashboard() {
                         {t.estado === 'pendiente' && (
                           <button
                             onClick={() => cambiarEstado(t.id, 'confirmado')}
+                            disabled={procesando}
                             className="min-h-10 text-xs text-accent border border-accent border-opacity-30 bg-accent bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition"
                           >
-                            Confirmar
+                            {procesando ? <span className="inline-flex items-center justify-center"><Spinner size="sm" /></span> : 'Confirmar'}
                           </button>
                         )}
 
                         {t.estado === 'confirmado' && (
                           <button
                             onClick={() => cambiarEstado(t.id, 'atendido')}
+                            disabled={procesando}
                             className="min-h-10 text-xs text-accent3 border border-accent3 border-opacity-30 bg-accent3 bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition"
                           >
-                            Marcar atendido
+                            {procesando ? <span className="inline-flex items-center justify-center"><Spinner size="sm" /></span> : 'Marcar atendido'}
                           </button>
                         )}
 
                         {['pendiente', 'pendiente_pago', 'confirmado'].includes(t.estado) && (
                           <button
                             onClick={() => cambiarEstado(t.id, 'cancelado')}
+                            disabled={procesando}
                             className="min-h-10 text-xs text-accent2 border border-accent2 border-opacity-30 bg-accent2 bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition"
                           >
-                            Cancelar
+                            {procesando ? <span className="inline-flex items-center justify-center"><Spinner size="sm" /></span> : 'Cancelar'}
                           </button>
                         )}
                       </div>

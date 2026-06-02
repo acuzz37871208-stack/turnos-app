@@ -82,44 +82,47 @@ export default function StepFechaHora({ negocio, onNext, onBack }) {
       </div>
 
       {/* Slots */}
-      {localFecha && (
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <label className="block text-sm text-muted">Horario</label>
-            {!loading && slots.length > 0 && (
-              <span className="text-xs text-muted">{disponibles} disponible{disponibles !== 1 ? 's' : ''}</span>
-            )}
-          </div>
-
-          {loading ? (
-            <LoadingBlock title="Buscando horarios" description="Estamos revisando la disponibilidad." />
-          ) : slots.length === 0 ? (
-            <div className="bg-surface border border-border rounded-xl px-5 py-8 text-center text-sm">
-              <p className="text-white font-medium">No hay horarios disponibles</p>
-              <p className="text-muted mt-2">Probá con otra fecha cercana.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {slots.map(slot => (
-                <button
-                  key={slot.hora}
-                  disabled={!slot.disponible}
-                  onClick={() => setHora(slot.hora)}
-                  className={`py-2.5 px-2 rounded-lg text-sm font-mono transition-all
-                    ${!slot.disponible
-                      ? 'bg-surface border border-border text-muted opacity-30 cursor-not-allowed line-through'
-                      : hora === slot.hora
-                        ? 'bg-accent text-white border border-accent'
-                        : 'bg-surface border border-border text-white hover:border-accent'
-                    }`}
-                >
-                  {slot.hora}
-                </button>
-              ))}
-            </div>
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <label className="block text-sm text-muted">Horario</label>
+          {localFecha && !loading && slots.length > 0 && (
+            <span className="text-xs text-muted">{disponibles} disponible{disponibles !== 1 ? 's' : ''}</span>
           )}
         </div>
-      )}
+
+        {!localFecha ? (
+          <div className="bg-surface border border-border rounded-xl px-5 py-8 text-center text-sm">
+            <p className="text-white font-medium">Elegí una fecha para ver horarios</p>
+            <p className="text-muted mt-2">Podés usar los accesos rápidos o seleccionar una fecha del calendario.</p>
+          </div>
+        ) : loading ? (
+          <LoadingBlock title="Buscando horarios" description="Estamos revisando la disponibilidad." />
+        ) : slots.length === 0 ? (
+          <div className="bg-surface border border-border rounded-xl px-5 py-8 text-center text-sm">
+            <p className="text-white font-medium">No hay horarios disponibles</p>
+            <p className="text-muted mt-2">Probá con otra fecha cercana.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {slots.map(slot => (
+              <button
+                key={slot.hora}
+                disabled={!slot.disponible}
+                onClick={() => setHora(slot.hora)}
+                className={`py-2.5 px-2 rounded-lg text-sm font-mono transition-all
+                  ${!slot.disponible
+                    ? 'bg-surface border border-border text-muted opacity-30 cursor-not-allowed line-through'
+                    : hora === slot.hora
+                      ? 'bg-accent text-white border border-accent'
+                      : 'bg-surface border border-border text-white hover:border-accent'
+                  }`}
+              >
+                {slot.hora}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Button variant="ghost" onClick={onBack}>Volver</Button>
