@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { applyBusinessTheme } from '../../lib/theme'
-import { Input, Button, Spinner, LoadingScreen, LoadingBlock, EmptyState } from '../../components/ui'
+import { Input, Button, Spinner, LoadingScreen, LoadingBlock, EmptyState, Alert } from '../../components/ui'
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 const TIPOS_NEGOCIO = ['clinica', 'peluqueria', 'cancha', 'otro']
@@ -56,6 +56,7 @@ export default function Configuracion() {
   const [activeTab, setActiveTab] = useState('general')
   const [publishSaving, setPublishSaving] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [publishNotice, setPublishNotice] = useState(null)
 
   const loadChecklist = useCallback(async (negocioId) => {
     const [{ data: servicios }, { data: profesionales }] = await Promise.all([
@@ -96,16 +97,34 @@ export default function Configuracion() {
 
   async function togglePublicacion() {
     if (!negocio || (!negocio.activo && !readyToPublish)) return
+    setPublishNotice(null)
     setPublishSaving(true)
     const nextActivo = !negocio.activo
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('negocios')
       .update({ activo: nextActivo })
       .eq('id', negocio.id)
       .select()
       .single()
 
-    if (data) setNegocio(data)
+    if (error) {
+      setPublishNotice({
+        tone: 'danger',
+        title: 'No pudimos actualizar la publicación',
+        message: 'Reintentá en unos segundos. La agenda no cambió de estado.',
+      })
+      setPublishSaving(false)
+      return
+    }
+
+    if (data) {
+      setNegocio(data)
+      setPublishNotice({
+        tone: nextActivo ? 'success' : 'warning',
+        title: nextActivo ? 'Agenda publicada' : 'Agenda pausada',
+        message: nextActivo ? 'Tus clientes ya pueden reservar desde el link público.' : 'El link queda fuera de servicio hasta que vuelvas a publicar.',
+      })
+    }
     setPublishSaving(false)
   }
 
@@ -156,6 +175,7 @@ export default function Configuracion() {
           onCopy={copiarLink}
           onTogglePublicacion={togglePublicacion}
           onOpenTab={setActiveTab}
+          notice={publishNotice}
         />
 
         {activeTab === 'general'   && <TabGeneral   negocio={negocio} setNegocio={setNegocio} publicUrl={publicUrl} />}
@@ -169,7 +189,7 @@ export default function Configuracion() {
   )
 }
 
-function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, readyToPublish, onCopy, onTogglePublicacion, onOpenTab }) {
+function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, readyToPublish, onCopy, onTogglePublicacion, onOpenTab, notice }) {
   const equipoLabel = needsProfesional(negocio?.tipo)
     ? 'Equipo activo'
     : negocio?.tipo === 'cancha'
@@ -186,6 +206,7 @@ function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, 
   ]
   const readyCount = requiredItems.filter((item) => item.ready).length
   const nextStep = requiredItems.find((item) => !item.ready)
+  const progress = requiredItems.length > 0 ? Math.round((readyCount / requiredItems.length) * 100) : 100
 
   const items = [
     ...requiredItems,
@@ -197,7 +218,7 @@ function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, 
   return (
     <section className="bg-surface border border-border rounded-xl p-5 mb-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-2">
             <Tag color={negocio?.activo ? 'green' : 'yellow'}>{negocio?.activo ? 'publicada' : 'borrador'}</Tag>
             {!readyToPublish && <Tag color="red">faltan datos</Tag>}
@@ -210,15 +231,34 @@ function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, 
                 ? 'La agenda está lista para publicarse.'
                 : 'Completá los puntos pendientes antes de publicarla.'}
           </p>
-          <p className="text-xs text-muted mt-2">
-            Progreso de publicación: {readyCount}/{requiredItems.length} requisitos listos.
-          </p>
+          <div className="mt-4">
+            <div className="flex items-center justify-between gap-3 text-xs text-muted">
+              <span>Progreso de publicación</span>
+              <span className="font-mono text-white">{progress}%</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-bg">
+              <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+          {nextStep ? (
+            <button type="button" onClick={() => onOpenTab?.(nextStep.tab)} className="mt-4 w-full rounded-xl border border-border bg-bg px-4 py-3 text-left transition-colors hover:border-accent sm:max-w-md">
+              <span className="block text-xs font-mono uppercase tracking-widest text-muted">Próximo paso</span>
+              <span className="mt-1 block text-sm font-medium text-white">Completar {nextStep.label.toLowerCase()}</span>
+              <span className="mt-1 block text-xs text-muted">
+                {nextStep.id === 'pagos'
+                  ? 'Conectá MercadoPago para publicar servicios con pago online obligatorio.'
+                  : 'Necesario para que la agenda pueda recibir reservas.'}
+              </span>
+            </button>
+          ) : (
+            <div className="mt-4 rounded-xl border border-accent3/30 bg-accent3/10 px-4 py-3 sm:max-w-md">
+              <p className="text-sm font-medium text-accent3">Configuración lista</p>
+              <p className="text-xs text-muted mt-1">Podés publicar, copiar el link o revisar la agenda como cliente.</p>
+            </div>
+          )}
           <p className="text-xs font-mono text-accent mt-3 break-all">{publicUrl}</p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col sm:min-w-36">
-          <Button type="button" onClick={onCopy} variant="ghost" className="text-sm px-3 py-2 flex-1">
-            {copied ? 'Copiado' : 'Copiar link'}
-          </Button>
           <Button
             type="button"
             onClick={onTogglePublicacion}
@@ -227,19 +267,26 @@ function BusinessStatus({ negocio, checklist, publicUrl, copied, publishSaving, 
           >
             {publishSaving ? <Spinner size="sm" /> : negocio?.activo ? 'Pausar' : 'Publicar'}
           </Button>
-          {nextStep && (
-            <Button type="button" variant="ghost" onClick={() => onOpenTab?.(nextStep.tab)} className="col-span-2 text-sm px-3 py-2 flex-1 whitespace-normal text-center leading-snug">
-              Completar {nextStep.label.toLowerCase()}
-            </Button>
-          )}
+          <Button type="button" onClick={onCopy} variant="ghost" className="text-sm px-3 py-2 flex-1">
+            {copied ? 'Copiado' : 'Copiar link'}
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => window.open(publicUrl, '_blank', 'noopener,noreferrer')} className="col-span-2 text-sm px-3 py-2 flex-1">
+            Ver agenda
+          </Button>
         </div>
       </div>
+
+      {notice && (
+        <Alert tone={notice.tone} title={notice.title} className="mt-5">
+          {notice.message}
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-5">
         {items.map((item) => (
           <div
             key={item.label}
-            className="border border-border rounded-lg px-4 py-3"
+            className={`border rounded-lg px-4 py-3 ${item.ready ? 'border-border bg-bg/30' : 'border-accent2/30 bg-accent2/10'}`}
           >
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm text-white">{item.label}</span>
@@ -263,11 +310,32 @@ function TabGeneral({ negocio, setNegocio, publicUrl }) {
   const [form, setForm] = useState({ ...negocio })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState(null)
 
   async function guardar(e) {
-    e.preventDefault(); setSaving(true)
-    await supabase.from('negocios').update({ nombre: form.nombre, descripcion: form.descripcion, telefono: form.telefono, tipo: form.tipo, label_profesional: form.label_profesional }).eq('id', negocio.id)
-    setNegocio(n => ({ ...n, ...form })); setSaving(false); setSaved(true)
+    e.preventDefault()
+    setSaving(true)
+    setSaved(false)
+    setError(null)
+
+    const updates = {
+      nombre: form.nombre,
+      descripcion: form.descripcion,
+      telefono: form.telefono,
+      tipo: form.tipo,
+      label_profesional: form.label_profesional,
+    }
+    const { error } = await supabase.from('negocios').update(updates).eq('id', negocio.id)
+
+    if (error) {
+      setError('No pudimos guardar la información del negocio. Reintentá en unos segundos.')
+      setSaving(false)
+      return
+    }
+
+    setNegocio(n => ({ ...n, ...updates }))
+    setSaving(false)
+    setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
 
@@ -303,6 +371,11 @@ function TabGeneral({ negocio, setNegocio, publicUrl }) {
           </div>
         </div>
       </Section>
+      {error && (
+        <Alert tone="danger" title="Cambios no guardados">
+          {error}
+        </Alert>
+      )}
       <div className="flex items-center gap-4">
         <Button type="submit" disabled={saving} className="flex-1">{saving ? <Spinner size="sm" /> : 'Guardar cambios'}</Button>
         {saved && <span className="text-sm text-accent3 font-mono">✓ Guardado</span>}
@@ -680,21 +753,48 @@ function TabPagos({ negocio, setNegocio }) {
   const [showToken, setShowToken] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState(null)
   const tieneToken = negocio?.mp_access_token
 
   async function guardar(e) {
-    e.preventDefault(); setSaving(true)
+    e.preventDefault()
+    setSaving(true)
+    setSaved(false)
+    setError(null)
+
+    if (!mpToken || mpToken.includes('•')) {
+      setError(tieneToken ? 'La cuenta ya está conectada. Pegá un token nuevo solo si querés reemplazarla.' : 'Pegá el Access Token de producción para conectar MercadoPago.')
+      setSaving(false)
+      return
+    }
+
     const updates = {}
-    if (mpToken && !mpToken.includes('•')) updates.mp_access_token = mpToken.trim()
-    await supabase.from('negocios').update(updates).eq('id', negocio.id)
-    setNegocio(n => ({ ...n, ...updates })); setSaving(false); setSaved(true)
+    updates.mp_access_token = mpToken.trim()
+    const { error } = await supabase.from('negocios').update(updates).eq('id', negocio.id)
+
+    if (error) {
+      setError('No pudimos guardar el token de MercadoPago. Revisá que esté completo e intentá de nuevo.')
+      setSaving(false)
+      return
+    }
+
+    setNegocio(n => ({ ...n, ...updates }))
+    setMpToken('••••••••••••••••')
+    setSaving(false)
+    setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
 
   async function quitarToken() {
     if (!confirm('¿Desconectás MercadoPago?')) return
-    await supabase.from('negocios').update({ mp_access_token: null }).eq('id', negocio.id)
-    setMpToken(''); setNegocio(n => ({ ...n, mp_access_token: null }))
+    setError(null)
+    const { error } = await supabase.from('negocios').update({ mp_access_token: null }).eq('id', negocio.id)
+    if (error) {
+      setError('No pudimos desconectar MercadoPago. Reintentá en unos segundos.')
+      return
+    }
+    setMpToken('')
+    setNegocio(n => ({ ...n, mp_access_token: null }))
   }
 
   return (
@@ -726,6 +826,11 @@ function TabPagos({ negocio, setNegocio }) {
             <p className="pt-1 text-yellow-400">Nunca compartas este token con nadie.</p>
           </div>
         </div>
+        {error && (
+          <Alert tone="danger" title="MercadoPago no se actualizó" className="mt-5">
+            {error}
+          </Alert>
+        )}
         <div className="flex items-center gap-4 mt-5">
           <Button type="submit" disabled={saving} className="flex-1">{saving ? <Spinner size="sm" /> : 'Guardar'}</Button>
           {saved && <span className="text-sm text-accent3 font-mono">✓ Guardado</span>}
