@@ -10,15 +10,6 @@ const SIN_PROFESIONAL = ['cancha']
 
 function needsProfesional(tipo) { return !SIN_PROFESIONAL.includes(tipo) }
 
-function inicial(nombre) {
-  return String(nombre || '?').trim().charAt(0).toUpperCase() || '?'
-}
-
-function precioLabel(precio) {
-  const value = Number(precio || 0)
-  return value > 0 ? ` · $${value.toLocaleString('es-AR')}` : ''
-}
-
 function Section({ title, description, children, action }) {
   return (
     <div className="border-b border-border pb-8 mb-8 last:border-0 last:mb-0 sm:pb-10 sm:mb-10">
@@ -151,18 +142,6 @@ export default function Configuracion() {
     { id: 'pagos', label: 'Pagos' },
     { id: 'apariencia', label: 'Apariencia' },
   ]
-
-  if (!negocio) {
-    return (
-      <div className="min-h-screen bg-bg flex items-center justify-center px-4">
-        <EmptyState
-          title="No encontramos tu negocio"
-          description="Volvé a crear la agenda o iniciá sesión con la cuenta propietaria."
-          action={<Button onClick={() => navigate('/onboarding')} className="text-sm px-3 py-2">Crear agenda</Button>}
-        />
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-bg">
@@ -412,15 +391,9 @@ function TabServicios({ negocio, onChange, onOpenPayments }) {
   const [nuevo, setNuevo] = useState(false)
 
   const fetchServicios = useCallback(async () => {
-    if (!negocio?.id) {
-      setServicios([])
-      setLoading(false)
-      return
-    }
-
     const { data } = await supabase.from('servicios').select('*').eq('negocio_id', negocio.id).order('nombre')
     setServicios(data || []); setLoading(false)
-  }, [negocio?.id])
+  }, [negocio.id])
 
   useEffect(() => { fetchServicios() }, [fetchServicios])
 
@@ -465,7 +438,7 @@ function TabServicios({ negocio, onChange, onOpenPayments }) {
                       {!s.activo && <Tag color="red">inactivo</Tag>}
                       {s.requiere_pago && <Tag color="yellow">pago requerido</Tag>}
                     </div>
-                    <p className="text-xs text-muted mt-0.5">{s.duracion_min || 30} min{precioLabel(s.precio)}</p>
+                    <p className="text-xs text-muted mt-0.5">{s.duracion_min} min{s.precio ? ` · $${s.precio.toLocaleString('es-AR')}` : ''}</p>
                   </div>
                   <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2 sm:ml-4 sm:justify-end">
                     <button onClick={() => setEditando(s.id)} className="min-h-9 rounded-lg border border-border px-2 text-xs text-muted hover:text-white">Editar</button>
@@ -489,14 +462,12 @@ function FormServicio({ negocio, servicio, onSave, onCancel }) {
 
   async function guardar(e) {
     e.preventDefault(); setSaving(true)
-    const duracion = Number(form.duracion_min)
-    const precio = form.precio === '' || form.precio === null ? null : Number(form.precio)
     const data = {
       negocio_id: negocio.id,
-      nombre: form.nombre.trim(),
+      nombre: form.nombre,
       descripcion: form.descripcion || null,
-      duracion_min: Number.isFinite(duracion) && duracion >= 5 ? duracion : 30,
-      precio: Number.isFinite(precio) && precio > 0 ? precio : null,
+      duracion_min: Number(form.duracion_min),
+      precio: form.precio ? Number(form.precio) : null,
       requiere_pago: pagosActivos ? form.requiere_pago : false,
       activo: true,
     }
@@ -527,7 +498,7 @@ function FormServicio({ negocio, servicio, onSave, onCancel }) {
       )}
       <div className="grid grid-cols-2 gap-2 mt-1">
         <Button type="button" variant="ghost" onClick={onCancel} className="text-sm px-3 py-2">Cancelar</Button>
-        <Button type="submit" disabled={saving || !form.nombre.trim()} className="flex-1 text-sm">{saving ? <Spinner size="sm" /> : 'Guardar'}</Button>
+        <Button type="submit" disabled={saving || !form.nombre} className="flex-1 text-sm">{saving ? <Spinner size="sm" /> : 'Guardar'}</Button>
       </div>
     </form>
   )
@@ -574,7 +545,7 @@ function TabEquipo({ negocio, onChange }) {
             : (
               <div key={p.id} className="bg-surface border border-border rounded-xl px-5 py-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="w-9 h-9 bg-border rounded-full flex items-center justify-center text-sm font-mono text-muted">{inicial(p.nombre)}</div>
+                  <div className="w-9 h-9 bg-border rounded-full flex items-center justify-center text-sm font-mono text-muted">{p.nombre[0].toUpperCase()}</div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-medium text-white">{p.nombre}</p>
@@ -603,7 +574,7 @@ function FormProfesional({ negocioId, profesional, label, onSave, onCancel }) {
 
   async function guardar(e) {
     e.preventDefault(); setSaving(true)
-    const data = { negocio_id: negocioId, nombre: form.nombre.trim(), especialidad: form.especialidad || null, activo: true }
+    const data = { negocio_id: negocioId, nombre: form.nombre, especialidad: form.especialidad || null, activo: true }
     if (profesional?.id) { await supabase.from('profesionales').update(data).eq('id', profesional.id) }
     else { await supabase.from('profesionales').insert(data) }
     setSaving(false); onSave()
@@ -616,7 +587,7 @@ function FormProfesional({ negocioId, profesional, label, onSave, onCancel }) {
       <Input placeholder="Especialidad (opcional)" value={form.especialidad || ''} onChange={e => setForm(f => ({ ...f, especialidad: e.target.value }))} />
       <div className="grid grid-cols-2 gap-2 mt-1">
         <Button type="button" variant="ghost" onClick={onCancel} className="text-sm px-3 py-2">Cancelar</Button>
-        <Button type="submit" disabled={saving || !form.nombre.trim()} className="flex-1 text-sm">{saving ? <Spinner size="sm" /> : 'Guardar'}</Button>
+        <Button type="submit" disabled={saving || !form.nombre} className="flex-1 text-sm">{saving ? <Spinner size="sm" /> : 'Guardar'}</Button>
       </div>
     </form>
   )
@@ -693,7 +664,7 @@ function TabHorarios({ negocio, onChange }) {
         ) : profesionales.map(prof => (
           <div key={prof.id} className="mb-6">
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 bg-border rounded-full flex items-center justify-center text-xs font-mono text-muted">{inicial(prof.nombre)}</div>
+              <div className="w-7 h-7 bg-border rounded-full flex items-center justify-center text-xs font-mono text-muted">{prof.nombre[0].toUpperCase()}</div>
               <p className="text-sm font-medium text-white">{prof.nombre}</p>
             </div>
             <div className="flex flex-col gap-2">

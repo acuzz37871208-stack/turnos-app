@@ -1,10 +1,6 @@
 import { useBookingStore } from '../../store/bookingStore'
 import { Card, Button, EmptyState } from '../../components/ui'
 
-function inicial(nombre) {
-  return String(nombre || '?').trim().charAt(0).toUpperCase() || '?'
-}
-
 export default function StepProfesional({ profesionales, onNext, onBack }) {
   const { profesional, setProfesional } = useBookingStore()
 
@@ -31,7 +27,7 @@ export default function StepProfesional({ profesionales, onNext, onBack }) {
             >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-border rounded-full flex items-center justify-center text-sm font-mono text-muted flex-shrink-0">
-                  {p.id === 'cualquiera' ? '?' : inicial(p.nombre)}
+                  {p.id === 'cualquiera' ? '?' : p.nombre[0].toUpperCase()}
                 </div>
                 <div>
                   <p className="font-medium text-white text-sm">{p.nombre}</p>
