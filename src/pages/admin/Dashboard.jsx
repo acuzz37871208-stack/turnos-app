@@ -40,7 +40,7 @@ function estadoHelp(estado) {
     pendiente: 'Pendiente de confirmación manual',
     pendiente_pago: 'Esperando confirmación de MercadoPago',
     confirmado: 'Confirmado para atender',
-    atendido: 'Turno cerrado',
+    atendido: 'Turno realizado',
     cancelado: 'Turno cancelado',
   }[estado]
 }
@@ -48,7 +48,7 @@ function estadoHelp(estado) {
 function estadoAccionLabel(estado) {
   return {
     confirmado: 'Turno confirmado',
-    atendido: 'Turno marcado como atendido',
+    atendido: 'Turno marcado como realizado',
     cancelado: 'Turno cancelado',
   }[estado] || 'Turno actualizado'
 }
@@ -186,7 +186,7 @@ export default function AdminDashboard() {
     { value: 'pendiente', label: 'Pendiente' },
     { value: 'pendiente_pago', label: 'Pago pendiente' },
     { value: 'confirmado', label: 'Confirmado' },
-    { value: 'atendido', label: 'Atendido' },
+    { value: 'atendido', label: 'Realizado' },
     { value: 'cancelado', label: 'Cancelado' },
   ]
 
@@ -238,7 +238,7 @@ export default function AdminDashboard() {
           <MetricCard label="Pendientes" value={metrics.pendiente} color="text-yellow-400" hint="manual" />
           <MetricCard label="Por cobrar" value={metrics.pendientePago} color="text-blue-300" hint="MP" />
           <MetricCard label="Confirmados" value={metrics.confirmado} color="text-accent" hint="activos" />
-          <MetricCard label="Atendidos" value={metrics.atendido} color="text-accent3" hint="cerrados" />
+          <MetricCard label="Realizados" value={metrics.atendido} color="text-accent3" hint="cerrados" />
           <MetricCard label="Cancelados" value={metrics.cancelado} color="text-accent2" hint="bajas" />
         </div>
 
@@ -393,7 +393,7 @@ export default function AdminDashboard() {
                             disabled={procesando}
                             className="min-h-10 text-xs text-accent3 border border-accent3 border-opacity-30 bg-accent3 bg-opacity-10 px-3 py-2 rounded-lg hover:bg-opacity-20 transition"
                           >
-                            {procesando ? <span className="inline-flex items-center justify-center"><Spinner size="sm" /></span> : 'Marcar atendido'}
+                            {procesando ? <span className="inline-flex items-center justify-center"><Spinner size="sm" /></span> : 'Marcar realizado'}
                           </button>
                         )}
 

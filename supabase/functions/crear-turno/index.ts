@@ -229,7 +229,7 @@ serve(async (req) => {
         fecha,
         hora_inicio,
         hora_fin,
-        estado: servicio.requiere_pago ? 'pendiente_pago' : 'pendiente',
+        estado: servicio.requiere_pago ? 'pendiente_pago' : 'confirmado',
       })
       .select()
       .single()

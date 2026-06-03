@@ -22,7 +22,7 @@ function TurnoCard({ turno, onCancelar }) {
     pendiente: 'El negocio todavía puede confirmar este turno.',
     pendiente_pago: 'Estamos esperando confirmación de pago.',
     confirmado: 'Tu turno está confirmado.',
-    atendido: 'Este turno ya fue atendido.',
+    atendido: 'Este turno ya fue realizado.',
     cancelado: 'Este turno fue cancelado.',
   }[turno.estado]
 

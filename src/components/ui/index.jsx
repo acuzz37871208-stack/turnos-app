@@ -56,7 +56,7 @@ const badgeLabels = {
   pendiente:      'pendiente',
   pendiente_pago: 'pago pendiente',
   confirmado:     'confirmado',
-  atendido:       'atendido',
+  atendido:       'realizado',
   cancelado:      'cancelado',
 }
 
